@@ -21,10 +21,11 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(
         tabPanel("Comparaison de Deux Variables", 
-                 plotOutput("graphique"),
-                 tabPanel("Nuage de Points", plotOutput("nuage_points")),
-                 tabPanel("Caractéristiques par Valeur", plotOutput("caracteristiques_valeurs")),
-                 tabPanel("Tableau Récapitulatif", tableOutput("tableau_recap"))
+                 tabsetPanel(
+                   tabPanel("Nuage de Points", plotOutput("nuage_points")),
+                   tabPanel("Caractéristiques par Valeur", plotOutput("caracteristiques_valeurs")),
+                   tabPanel("Tableau Récapitulatif", tableOutput("tableau_recap"))
+                 )
         ),
         tabPanel("Visualisation d'une Seule Variable", 
                  tabsetPanel(
@@ -86,8 +87,10 @@ server <- function(input, output, session) {
         print(caracteristiques_valeurs_gg)
       })
       
-      # Créer le tableau récapitulatif
-      tableau_recap <- summary(donnees()[, c(input$colonne1, input$colonne2), drop = FALSE])
+      tableau_recap <- as.data.frame(t(sapply(donnees()[, c(input$colonne1, input$colonne2), drop = FALSE], summary)))
+      
+      # Renommer les colonnes
+      colnames(tableau_recap) <- paste(rep(c(""), each = 1), colnames(tableau_recap), sep = "")
       
       # Afficher le tableau récapitulatif
       output$tableau_recap <- renderTable({
