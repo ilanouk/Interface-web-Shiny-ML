@@ -4,7 +4,7 @@
 
 library(shiny)
 library(ggplot2)
-#source('utils.r')
+
 # Interface utilisateur Shiny
 ui <- fluidPage(
   titlePanel("Analyse Exploratoire - Choix de Variables"),
@@ -20,19 +20,6 @@ ui <- fluidPage(
     
     mainPanel(
       tabsetPanel(
-        tabPanel( "Affichage des données",
-                  tabsetPanel(
-                    tableOutput("myDataTable")
-                  )                  
-        ),
-        tabPanel( "Preproprecessing",
-                  tabsetPanel(
-                    textInput("string_to_replace","Entrer le string que vous voulez remplacer par des NA"),
-                    actionButton("button_to_NA", "Lancer le Preprocessing")
-                    
-                  )
-        ),
-        
         tabPanel("Comparaison de Deux Variables", 
                  tabsetPanel(
                    tabPanel("Nuage de Points", plotOutput("nuage_points")),
@@ -69,7 +56,6 @@ server <- function(input, output, session) {
     updateSelectInput(session, "colonne1", choices = col_choices)
     updateSelectInput(session, "colonne2", choices = col_choices)
   })
-  
   
   observeEvent(input$analyser, {
     req(input$colonne1)
@@ -170,10 +156,6 @@ server <- function(input, output, session) {
       })
     }
   })
-  observeEvent(input$button_to_NA, {
-    replace_by_NA(donnees,string_to_replace)
-  })
-  output$myDataTable <- renderTable({donnees()})
 }
 
 # Lancer l'application Shiny

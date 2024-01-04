@@ -1,6 +1,6 @@
 # Chargement du package nécessaire
-#install.packages("readr")
-#library(readr)
+install.packages("readr")
+library(readr)
 
 # Spécifie le chemin vers le fichier hepatitis.data
 chemin_fichier <- "hepatitis.data"
