@@ -1,10 +1,13 @@
 # Installer les packages Shiny et ggplot2 s'ils ne sont pas déjà installés
 # install.packages("shiny")
 # install.packages("ggplot2")
-
+if(!require('imbalance')) {
+  install.packages('imbalance')
+  library('imbalance')
+}
 library(shiny)
 library(ggplot2)
-#source('utils.r')
+source('utils.r')
 # Interface utilisateur Shiny
 ui <- fluidPage(
   titlePanel("Analyse Exploratoire - Choix de Variables"),
@@ -15,20 +18,26 @@ ui <- fluidPage(
       selectInput("colonne1", "Choisir la première variable :", ""),
       selectInput("colonne2", "Choisir la deuxième variable :", ""),
       selectInput("type_viz", "Choisir le type de visualisation :", c("Comparaison de Deux Variables", "Visualisation d'une Seule Variable")),
-      actionButton("analyser", "Lancer l'analyse")
+      actionButton("analyser", "Lancer l'analyse"),
+      actionButton("button_to_NA", "Lancer le Preprocessing")
+      
     ),
     
     mainPanel(
       tabsetPanel(
         tabPanel( "Affichage des données",
                   tabsetPanel(
-                    tableOutput("myDataTable")
+                    tabPanel("Donnéees" ,tableOutput("myDataTable"))
                   )                  
         ),
         tabPanel( "Preproprecessing",
                   tabsetPanel(
                     textInput("string_to_replace","Entrer le string que vous voulez remplacer par des NA"),
-                    actionButton("button_to_NA", "Lancer le Preprocessing")
+                    selectInput("numericMethod", "Choose Method for Numeric Variables:",
+                                choices = c("Mean", "Median")),
+                    selectInput("categoricalMethod", "Choose Method for Categorical Variables:",
+                                choices = c("Most Frequent", "Least Frequent")),
+                    selectInput("variable_classe", "Variable qui vaut Classe :", ""),
                     
                   )
         ),
@@ -68,6 +77,7 @@ server <- function(input, output, session) {
     col_choices <- names(donnees())
     updateSelectInput(session, "colonne1", choices = col_choices)
     updateSelectInput(session, "colonne2", choices = col_choices)
+    updateSelectInput(session, "variable_classe", choices = col_choices)
   })
   
   
@@ -170,9 +180,16 @@ server <- function(input, output, session) {
       })
     }
   })
+  # Remplacement de certain champs par des NA
+  #Lancement du preprocessing
   observeEvent(input$button_to_NA, {
-    replace_by_NA(donnees,string_to_replace)
+    print(replace_by_NA(donnees,input$string_to_replace))
+    donnees <- replace_by_NA(donnees,input$string_to_replace)
+    print("inside")
+    #donnees <- replace_missing_values_all(donnees,input$numericMethod, input$categoricalMethod)
+    #oversample(donnees(),classAttr=input$variable_classe,ratio=0.8)
   })
+  # Print les données 
   output$myDataTable <- renderTable({donnees()})
 }
 
