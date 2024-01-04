@@ -5,6 +5,8 @@ if(!require('imbalance')) {
   install.packages('imbalance')
   library('imbalance')
 }
+library(magrittr)
+library(dplyr)
 library(shiny)
 library(ggplot2)
 source('utils.r')
@@ -37,7 +39,7 @@ ui <- fluidPage(
                                 choices = c("Mean", "Median")),
                     selectInput("categoricalMethod", "Choose Method for Categorical Variables:",
                                 choices = c("Most Frequent", "Least Frequent")),
-                    selectInput("variable_classe", "Variable qui vaut Classe :", ""),
+                    selectInput("variable_classe", "Variable qui vaut Classe :", "")
                     
                   )
         ),
@@ -183,10 +185,9 @@ server <- function(input, output, session) {
   # Remplacement de certain champs par des NA
   #Lancement du preprocessing
   observeEvent(input$button_to_NA, {
-    print(replace_by_NA(donnees,input$string_to_replace))
-    donnees <- replace_by_NA(donnees,input$string_to_replace)
-    print("inside")
-    #donnees <- replace_missing_values_all(donnees,input$numericMethod, input$categoricalMethod)
+    donnees <- replace_by_NA(donnees(),input$string_to_replace)
+    #print(replace_missing_values_all(donnees,input$numericMethod, input$categoricalMethod))
+    donnees <- replace_missing_values_all(donnees,input$numericMethod, input$categoricalMethod)
     #oversample(donnees(),classAttr=input$variable_classe,ratio=0.8)
   })
   # Print les données 
