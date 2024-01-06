@@ -185,13 +185,19 @@ server <- function(input, output, session) {
   # Remplacement de certain champs par des NA
   #Lancement du preprocessing
   observeEvent(input$button_to_NA, {
-    donnees <- replace_by_NA(donnees(),input$string_to_replace)
+    donnees <- (replace_by_NA(donnees(),input$string_to_replace))
+    #Remplacement de tout les NA
+    donnees <- replace_missing_values(donnees,input$numericMethod, input$categoricalMethod)
+    output$myDataTable <- renderTable(donnees())
+    
+   # output$myDataTable <- renderTable({donnees()})
+    
     #print(replace_missing_values_all(donnees,input$numericMethod, input$categoricalMethod))
-    donnees <- replace_missing_values_all(donnees,input$numericMethod, input$categoricalMethod)
     #oversample(donnees(),classAttr=input$variable_classe,ratio=0.8)
   })
-  # Print les données 
-  output$myDataTable <- renderTable({donnees()})
+  # Print les données
+ output$myDataTable <- renderTable(donnees())
+  
 }
 
 # Lancer l'application Shiny

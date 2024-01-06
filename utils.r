@@ -1,43 +1,57 @@
-replace_by_NA <- function(data, value_to_replace) {
-  for (col in colnames(data) ){
-    data()[[col]][data()[[col]] == value_to_replace] <- NA
-  }
-  return(data())
+replace_by_NA <- function(df, value_to_replace) {
+  print("in replace by NA")
+    # Replace NA values with 0 using dplyr pipe operator
+      df_value <- df %>% mutate_all(~ ifelse(. == value_to_replace, NA, .))
+      data <- reactiveVal({df_value})
+    return(data)
 }
-replace_missing_values <- function(df, var, numericMethod, categoricalMethod) {
-  print("in")
-  
+replace_missing_values <- function(df, numericMethod, categoricalMethod) {
+#Fonction qui remplace tout les NA par la méthode choisi par l'utilisateur
+  df_value <- df()
+  for (var in colnames(df())) {
+    print(df_value)
   # Replace missing values based on user's choice
-  if (is.numeric(df[[var]])) {
-    print("numeric")
-    if (numericMethod == "Mean") {
-      print("mean")
-      df[[var]][is.na(df[[var]])] <- mean(df[[var]], na.rm = TRUE)
-      print('uwu')
-    } else if (numericMethod == "Median") {
-      print("median")
-      df[[var]][is.na(df[[var]])] <- median(df[[var]], na.rm = TRUE)
-    }
-  } else {
-    print("else")
-    if (categoricalMethod == "Most Frequent") {
-      print("most")
-      df[[var]][is.na(df[[var]])] <- names(sort(table(df[[var]], useNA = "always"), decreasing = TRUE))[1]
-    } else if (categoricalMethod == "Least Frequent") {
-      print("least")
-      df[[var]][is.na(df[[var]])] <- names(sort(table(df[[var]], useNA = "always"), decreasing = FALSE))[1]
+    if (is.numeric(df()[[var]])) {
+      print("numeric")
+      if (numericMethod == "Mean") {
+        df_value[[var]][is.na(df_value[[var]])] <- mean(df_value[[var]], na.rm = TRUE)
+      
+        } else if (numericMethod == "Median") {
+        df_value[[var]][is.na(df_value[[var]])] <- median(df_value[[var]], na.rm = TRUE)
+      }
+    } else {
+      print("categorielle")
+      if (categoricalMethod == "Most Frequent") {
+        most_frequent_value <- names(sort(table(df_value[[var]], useNA = "no"), decreasing = TRUE))[1]
+        df_value[[var]][is.na(df_value[[var]])] <- most_frequent_value
+        
+      } else if (categoricalMethod == "Least Frequent") {
+        frequencies <- table(df_value[[var]], useNA = "always")
+        least_frequent_value <- names(sort(table(df_value[[var]], useNA = "always"), decreasing = FALSE))[1]
+
+
+        if (is.na(least_frequent_value)) {
+          # Replace NAs with the most frequent non-NA value
+          most_frequent_non_na <- names(sort(frequencies, decreasing = TRUE))[2]  # Assumes there is at least one non-NA value
+          df_value[[var]][is.na(df_value[[var]])] <- most_frequent_non_na
+        } else {
+          # Replace NAs with the least frequent non-NA value
+          df_value[[var]][is.na(df_value[[var]])] <- least_frequent_value
+        }
+      }
     }
   }
-  
-  return(df)
+  data <- reactiveVal({df_value})
+  #print(df_value)
+  return(data)
 }
 
-replace_missing_values_all <- function(df, numericMethod, categoricalMethod) {
-  for (col in names(df)) {
-    df <- replace_missing_values(df, col, numericMethod, categoricalMethod)
-  }
-  return(df)
+normaliser <- function(df){
+  
+  pass
 }
+
+#Pour la normalisation : iris_norm <- as.data.frame(lapply(iris[1:4], min_max_norm))
 
 
 
