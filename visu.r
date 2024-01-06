@@ -60,11 +60,13 @@ server <- function(input, output, session) {
   observeEvent(input$analyser, {
     req(input$colonne1)
     
+    ###### VISU DOUBLE #######
+    
     if (input$type_viz == "Comparaison de Deux Variables") {
       req(input$colonne2)
       
       # Créer le nuage de points
-      nuage_points_gg <- ggplot(donnees(), aes_string(x = input$colonne1, y = input$colonne2)) +
+      nuage_points_gg <- ggplot(donnees(), aes(x = !!sym(input$colonne1), y = !!sym(input$colonne2), color = as.factor(donnees()[[input$colonne2]]))) +
         geom_point() +
         labs(title = paste("Nuage de Points entre", input$colonne1, "et", input$colonne2),
              x = input$colonne1, y = input$colonne2) +
@@ -80,7 +82,10 @@ server <- function(input, output, session) {
         geom_boxplot() +
         labs(title = paste("Caractéristiques par Valeur pour", input$colonne1, "et", input$colonne2),
              x = input$colonne1, y = input$colonne2) +
-        theme_minimal()
+        coord_flip() +
+        theme_minimal() 
+      #scale_y_continuous(limits = c(min(donnees()[[input$colonne2]]), max(donnees()[[input$colonne2]])))
+      
       
       # Afficher les caractéristiques par valeur
       output$caracteristiques_valeurs <- renderPlot({
@@ -108,6 +113,8 @@ server <- function(input, output, session) {
       output$graphique <- renderPlot({
         print(gg)
       })
+      
+      ####### VISU SIMPLE #######
       
     } else if (input$type_viz == "Visualisation d'une Seule Variable") {
       
