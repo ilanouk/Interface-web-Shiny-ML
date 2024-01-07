@@ -6,6 +6,8 @@
 # install.packages("yardstick")
 # install.packages("ggplot2")
 # install.packages("ROCR")
+# install.packages("e1071")
+
 
 library(shiny)
 library(ggplot2)
@@ -15,6 +17,7 @@ library(caTools)
 library(caret)
 library(yardstick)
 library(ROCR)
+library(e1071)
 
 
 # Interface utilisateur Shiny
@@ -47,22 +50,20 @@ ui <- fluidPage(
                    tabPanel("Tableau Statistique", tableOutput("tableau_stats"))
                  )
         ),
-        tabsetPanel(
-          tabPanel("RandomForest",
-                   fileInput("fichier_modele_rf", "Choisir le fichier .data"),
-                   actionButton("lancer_modele_rf", "Lancer le modèle RandomForest"),
-                   textOutput("resultats_modele_rf"),
-                   plotOutput("courbe_roc_rf")
-          ),
-          
-          tabPanel("SVM",
-                   fileInput("fichier_modele_svm", "Choisir le fichier .data"),
-                   actionButton("lancer_modele_svm", "Lancer le modèle SVM"),
-                   textOutput("resultats_modele_svm"),
-                   plotOutput("courbe_roc_svm")
-          )
+        tabPanel("RandomForest",
+                 fileInput("fichier_modele_rf", "Choisir le fichier .data"),
+                 actionButton("lancer_modele_rf", "Lancer le modèle RandomForest"),
+                 textOutput("resultats_modele_rf"),
+                 plotOutput("courbe_roc_rf")
+        ),
+        tabPanel("SVM",
+                 fileInput("fichier_modele_svm", "Choisir le fichier .data"),
+                 actionButton("lancer_modele_svm", "Lancer le modèle SVM"),
+                 textOutput("resultats_modele_svm"),
+                 plotOutput("courbe_roc_svm"),
+                 textOutput("resultats_modele_svmr"),
+                 plotOutput("courbe_roc_svmr")
         )
-        
       )
     )
   )
@@ -248,7 +249,7 @@ server <- function(input, output, session) {
     }
     
     donnees_modele <- read.table(input$fichier_modele_rf$datapath, header = TRUE, sep = ",")
-    model_rf <- fonctionRF(donnees_modele, param_interet <- "X1.2")
+    model_rf <- fonctionRF(donnees_modele, param_interet <- "X1.1")
     
     res <- getPrecision_Recall_FScore(model_rf[[4]])
     
@@ -259,9 +260,185 @@ server <- function(input, output, session) {
     })
     
     output$courbe_roc_rf <- renderPlot({
-      afficheROC(model_rf[[1]], donnees_modele, param_interet)
+      afficheROC(model_rf[[1]], model_rf[[3]], param_interet)
     })
   })
+  
+  observeEvent(input$lancer_modele_svm, {
+    req(input$fichier_modele_svm$datapath)
+    
+    getPrecision_Recall_FScore <- function(mat_conf) {
+      #On extrait les valeurs de la matrice de confusion
+      tp <- mat_conf[2, 2]  # True Positives
+      fp <- mat_conf[1, 2]  # False Positives
+      fn <- mat_conf[2, 1]  # False Negatives
+      
+      
+      # Calculer la précision, le rappel et le F-score
+      precision <- tp / (tp + fp)
+      recall <- tp / (tp + fn)
+      fscore <- 2 * (precision * recall) / (precision + recall)
+      
+      
+      # Afficher les résultats
+      cat("Precision:", precision, "\n")
+      cat("Recall:", recall, "\n")
+      cat("Fscore:", fscore, "\n")
+      
+      return(c(precision,recall,fscore))
+    }
+    
+    #Fonction permettant l'application du modèle svm lineaire
+    # parametres : le dataset, le paramètre d'interet
+    
+    fonctionSVM_lineaire <- function(donnees, interet) {
+      SVM = NULL
+      set.seed(123)
+      
+      #on recupère l'index du parametre d'interet
+      index_X = which(colnames(donnees) == interet)
+      
+      #Faire de la variable dependante un facteur (categorique)
+      #donnees[[interet]] pour donnees$interet
+      donnees[[interet]] <- as.factor(donnees[[interet]])
+      
+      #echantillonnage trainset et testset
+      ind <- sample(2, nrow(donnees), replace = TRUE, prob=c(0.7, 0.3))
+      data_train <- donnees[ind == 1,]
+      data_test <- donnees[ind == 2,]
+      
+      #Etape importante dans de nombreux algorithmes d'apprentissage automatique,
+      # y compris les machines à vecteurs de support (SVM). Cette pratique vise à normaliser
+      # les caractéristiques du jeu de données, c'est-à-dire à les ramener à une échelle commune
+      
+      #Feature Scaling sauf sur le parametre d'interet
+      data_train[-index_X] <- scale(data_train[-index_X])
+      data_test[-index_X] <- scale(data_test[-index_X])
+      
+      #construction du modele
+      SVM = svm(as.formula(paste(interet, "~ .")), data = data_train, type = 'C-classification', kernel = 'linear')
+      print(SVM)
+      
+      cat("\n\n")
+      
+      #prediction
+      pred <- predict(SVM, data_test)
+      
+      #Matrice de confusion
+      mat_conf <- table(observed = data_test[[interet]], predicted = pred)
+      cat("Matrice de condusion sur de nouvelles données:\n\n")
+      print(mat_conf)
+      
+      return(list(SVM, data_train, data_test, mat_conf))
+    }
+    
+    #Fonction permettant l'application du modèle svm radial
+    # parametres : le dataset, le paramètre d'interet
+    
+    fonctionSVM_radial <- function(donnees, interet) {
+      SVM = NULL
+      set.seed(123)
+      
+      #on recupère l'index du parametre d'interet
+      index_X = which(colnames(donnees) == interet)
+      
+      #Faire de la variable dependante un facteur (categorique)
+      #donnees[[interet]] pour donnees$interet
+      donnees[[interet]] <- as.factor(donnees[[interet]])
+      
+      #echantillonnage trainset et testset
+      ind <- sample(2, nrow(donnees), replace = TRUE, prob=c(0.7, 0.3))
+      data_train <- donnees[ind == 1,]
+      data_test <- donnees[ind == 2,]
+      
+      #Feature Scaling sauf sur le parametre d'interet
+      data_train[-index_X] <- scale(data_train[-index_X])
+      data_test[-index_X] <- scale(data_test[-index_X])
+      
+      #construction du modele
+      SVM = svm(as.formula(paste(interet, "~ .")), data = data_train, type = 'C-classification', kernel = 'radial', gamma = 0.01)
+      print(SVM)
+      
+      cat("\n\n")
+      
+      #prediction
+      pred <- predict(SVM, data_test)
+      
+      #Matrice de confusion
+      mat_conf <- table(observed = data_test[[interet]], predicted = pred)
+      cat("Matrice de condusion sur de nouvelles données:\n\n")
+      print(mat_conf)
+      
+      return(list(SVM, data_train, data_test, mat_conf))
+    }
+    
+    
+    afficheROC_SVM <- function(SVM,donnees_test,interet, type){
+      
+      #Prédiction des probabilités avec le modèle svm sur le jeu de données de test
+      pred_prob <- predict(SVM, newdata = donnees_test, type = "prob")
+      
+      #Extraction des probabilités associées à la classe positive (2ème colonne)
+      pred_positive <- as.numeric(levels(pred_prob))[pred_prob]
+      
+      #Obtention des vraies étiquettes (valeurs de la variable cible) à partir du jeu de données de test
+      true_labels <- donnees_test[[interet]]
+      
+      #Création d'un objet de performance en utilisant les probabilités prédites et les vraies étiquettes
+      perf <- prediction(pred_positive, true_labels)
+      
+      #AUC
+      auc <- performance(perf, "auc")
+      cat("AUC = ", auc@y.values[[1]])
+      
+      #TPR FPR
+      pred3 <- performance(perf, "tpr","fpr")
+      
+      if(type=="linéaire"){
+        #ROC curve
+        plot(pred3,main="ROC Curve pour le SVM Linéaire",col=2,lwd=2)
+        abline(a=0,b=1,lwd=2,lty=2,col="gray")
+      }
+      
+      else if(type=="radiale"){
+        #ROC curve
+        plot(pred3,main="ROC Curve pour le SVM Radiale",col=2,lwd=2)
+        abline(a=0,b=1,lwd=2,lty=2,col="gray")
+      }
+    }
+    
+    donnees_modele_svm <- read.table(input$fichier_modele_svm$datapath, header = TRUE, sep = ",")
+    
+    #SVM Linéaire
+    model_svm <- fonctionSVM_lineaire(donnees_modele_svm, param_interet <- "X1.2")
+    
+    #SMV Radial
+    model_svmr <- fonctionSVM_radial(donnees_modele_svm, param_interet <- "X1.2")
+    
+    res_l <- getPrecision_Recall_FScore(model_svm[[4]])
+    res_r <- getPrecision_Recall_FScore(model_svmr[[4]])
+    
+    output$resultats_modele_svm <- renderText({
+      paste("Precision:", res_l[1], "\n",
+            "Recall:", res_l[2], "\n",
+            "Fscore:", res_l[3], "\n")
+    })
+    
+    output$resultats_modele_svmr <- renderText({
+      paste("Precision:", res_r[1], "\n",
+            "Recall:", res_r[2], "\n",
+            "Fscore:", res_r[3], "\n")
+    })
+    
+    output$courbe_roc_svm <- renderPlot({
+      afficheROC_SVM(model_svm[[1]], model_svm[[3]], param_interet, "linéaire")
+    })
+    
+    output$courbe_roc_svmr <- renderPlot({
+      afficheROC_SVM(model_svmr[[1]], model_svm[[3]], param_interet, "radiale")
+    })
+  })
+  
 }
 
 # Lancer l'application Shiny
