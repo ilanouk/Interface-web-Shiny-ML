@@ -9,10 +9,8 @@ replace_missing_values <- function(df, numericMethod, categoricalMethod) {
 #Fonction qui remplace tout les NA par la méthode choisi par l'utilisateur
   df_value <- df()
   for (var in colnames(df())) {
-    print(df_value)
   # Replace missing values based on user's choice
     if (is.numeric(df()[[var]])) {
-      print("numeric")
       if (numericMethod == "Mean") {
         df_value[[var]][is.na(df_value[[var]])] <- mean(df_value[[var]], na.rm = TRUE)
       
@@ -20,7 +18,6 @@ replace_missing_values <- function(df, numericMethod, categoricalMethod) {
         df_value[[var]][is.na(df_value[[var]])] <- median(df_value[[var]], na.rm = TRUE)
       }
     } else {
-      print("categorielle")
       if (categoricalMethod == "Most Frequent") {
         most_frequent_value <- names(sort(table(df_value[[var]], useNA = "no"), decreasing = TRUE))[1]
         df_value[[var]][is.na(df_value[[var]])] <- most_frequent_value
@@ -42,16 +39,32 @@ replace_missing_values <- function(df, numericMethod, categoricalMethod) {
     }
   }
   data <- reactiveVal({df_value})
-  #print(df_value)
   return(data)
 }
 
-normaliser <- function(df){
+
+
+normaliser <- function(data){
+  df <- data()
+  encoded_df <- cbind(df[, -grep("Category", colnames(df))], model.matrix(~ Category - 1, data = df))  
+  # Function for min-max scaling
+  min_max_scale <- function(x) {
+    (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+  }
   
-  pass
+  # Apply min-max scaling to numerical columns in the encoded dataframe
+  numerical_columns <- df_encoded[, sapply(df_encoded, is.numeric)]
+  df_encoded[, names(numerical_columns)] <- as.data.frame(lapply(numerical_columns, min_max_scale))
+  reactive_df <- reactiveValues(df_encoded)
+  return (reactive_df)
 }
 
 #Pour la normalisation : iris_norm <- as.data.frame(lapply(iris[1:4], min_max_norm))
 
-
-
+class_diff <- function(data,classe){
+  df <- data()
+  print(names(df))
+  class_counts <- table(df$classe)
+  class_proportions <- prop.table(class_counts)
+  return (class_proportions)
+}

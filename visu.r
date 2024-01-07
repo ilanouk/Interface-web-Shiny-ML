@@ -5,6 +5,7 @@ if(!require('imbalance')) {
   install.packages('imbalance')
   library('imbalance')
 }
+
 library(magrittr)
 library(dplyr)
 library(shiny)
@@ -35,11 +36,12 @@ ui <- fluidPage(
         tabPanel( "Preproprecessing",
                   tabsetPanel(
                     textInput("string_to_replace","Entrer le string que vous voulez remplacer par des NA"),
-                    selectInput("numericMethod", "Choose Method for Numeric Variables:",
-                                choices = c("Mean", "Median")),
-                    selectInput("categoricalMethod", "Choose Method for Categorical Variables:",
-                                choices = c("Most Frequent", "Least Frequent")),
-                    selectInput("variable_classe", "Variable qui vaut Classe :", "")
+                    selectInput("numericMethod", "Choose Method for Numeric Variables to replace NA:",
+                                choices = c("None","Mean", "Median")),
+                    selectInput("categoricalMethod", "Choose Method for Categorical Variables to replace NA:",
+                                choices = c("None","Most Frequent", "Least Frequent")),
+                    selectInput("variable_classe", "Variable qui vaut Classe :", ""),
+                    checkboxInput('do_normalisation', 'Voulez vous normaliser le dataset',value=FALSE)
                     
                   )
         ),
@@ -188,12 +190,17 @@ server <- function(input, output, session) {
     donnees <- (replace_by_NA(donnees(),input$string_to_replace))
     #Remplacement de tout les NA
     donnees <- replace_missing_values(donnees,input$numericMethod, input$categoricalMethod)
+    
+ #  if(input$do_normalisation){
+  #   normaliser(df)
+  # }
+    #print(input$variable_classe)
+    #print(class_diff(donnees,input$variable_classe))
+    #if (class_diff<0.8){
+    #oversample(donnees(),classAttr=input$variable_classe,ratio=0.8)
+    #}  
     output$myDataTable <- renderTable(donnees())
     
-   # output$myDataTable <- renderTable({donnees()})
-    
-    #print(replace_missing_values_all(donnees,input$numericMethod, input$categoricalMethod))
-    #oversample(donnees(),classAttr=input$variable_classe,ratio=0.8)
   })
   # Print les données
  output$myDataTable <- renderTable(donnees())
