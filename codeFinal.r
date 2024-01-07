@@ -35,6 +35,24 @@ ui <- fluidPage(
     
     mainPanel(
       tabsetPanel(
+        tabPanel( "Affichage des données",
+                  tabsetPanel(
+                    tabPanel("Donnéees" ,tableOutput("myDataTable"))
+                  )                  
+        ),
+        tabPanel( "Preproprecessing",
+                  tabsetPanel(
+                    textInput("string_to_replace","Entrer le string que vous voulez remplacer par des NA"),
+                    selectInput("numericMethod", "Choose Method for Numeric Variables to replace NA:",
+                                choices = c("None","Mean", "Median")),
+                    selectInput("categoricalMethod", "Choose Method for Categorical Variables to replace NA:",
+                                choices = c("None","Most Frequent", "Least Frequent")),
+                    selectInput("variable_classe", "Variable qui vaut Classe :", ""),
+                    checkboxInput('do_normalisation', 'Voulez vous normaliser le dataset',value=FALSE)
+                    
+                  )
+        ),
+      tabsetPanel(
         tabPanel("Comparaison de Deux Variables", 
                  tabsetPanel(
                    tabPanel("Nuage de Points", plotOutput("nuage_points")),
@@ -437,6 +455,17 @@ server <- function(input, output, session) {
     output$courbe_roc_svmr <- renderPlot({
       afficheROC_SVM(model_svmr[[1]], model_svm[[3]], param_interet, "radiale")
     })
+    observeEvent(input$button_to_NA, {
+    donnees <- (replace_by_NA(donnees(),input$string_to_replace))
+    #Remplacement de tout les NA
+    donnees <- replace_missing_values(donnees,input$numericMethod, input$categoricalMethod)
+    
+    output$myDataTable <- renderTable(donnees())
+    
+  })
+  # Print les données
+ output$myDataTable <- renderTable(donnees())
+  
   })
   
 }
