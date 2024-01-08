@@ -8,7 +8,7 @@
 # install.packages("ROCR")
 # install.packages("e1071")
 
-
+source('utils.r')
 library(shiny)
 library(ggplot2)
 library(dplyr)
@@ -30,7 +30,10 @@ ui <- fluidPage(
       selectInput("colonne1", "Choisir la première variable :", ""),
       selectInput("colonne2", "Choisir la deuxième variable :", ""),
       selectInput("type_viz", "Choisir le type de visualisation :", c("Comparaison de Deux Variables", "Visualisation d'une Seule Variable")),
-      actionButton("analyser", "Lancer l'analyse")
+      selectInput("interet", "Variable d'intérêt :", ""),
+      actionButton("analyser", "Lancer l'analyse"),
+      actionButton("button_to_NA", "Lancer le Preprocessing")
+      
     ),
     
     mainPanel(
@@ -47,7 +50,6 @@ ui <- fluidPage(
                                 choices = c("None","Mean", "Median")),
                     selectInput("categoricalMethod", "Choose Method for Categorical Variables to replace NA:",
                                 choices = c("None","Most Frequent", "Least Frequent")),
-                    selectInput("variable_classe", "Variable qui vaut Classe :", ""),
                     checkboxInput('do_normalisation', 'Voulez vous normaliser le dataset',value=FALSE)
                     
                   )
@@ -69,18 +71,19 @@ ui <- fluidPage(
                  )
         ),
         tabPanel("RandomForest",
-                 fileInput("fichier_modele_rf", "Choisir le fichier .data"),
+                 #fileInput("fichier_modele_rf", "Choisir le fichier .data"),
                  actionButton("lancer_modele_rf", "Lancer le modèle RandomForest"),
                  textOutput("resultats_modele_rf"),
                  plotOutput("courbe_roc_rf")
         ),
         tabPanel("SVM",
-                 fileInput("fichier_modele_svm", "Choisir le fichier .data"),
+                 #fileInput("fichier_modele_svm", "Choisir le fichier .data"),
                  actionButton("lancer_modele_svm", "Lancer le modèle SVM"),
                  textOutput("resultats_modele_svm"),
                  plotOutput("courbe_roc_svm"),
                  textOutput("resultats_modele_svmr"),
                  plotOutput("courbe_roc_svmr")
+                )
         )
       )
     )
@@ -102,6 +105,8 @@ server <- function(input, output, session) {
     col_choices <- names(donnees())
     updateSelectInput(session, "colonne1", choices = col_choices)
     updateSelectInput(session, "colonne2", choices = col_choices)
+    updateSelectInput(session, "interet", choices = col_choices)
+    
   })
   
   observeEvent(input$analyser, {
@@ -213,8 +218,8 @@ server <- function(input, output, session) {
   
   ###### MODELE #######
   
-  observeEvent(input$lancer_modele_rf, {
-    req(input$fichier_modele_rf$datapath)
+  observeEvent(input$analyser, {
+    #req(input$fichier_modele_rf$datapath)
     
     getPrecision_Recall_FScore <- function(mat_conf) {
       tp <- mat_conf[2, 2]
@@ -266,8 +271,8 @@ server <- function(input, output, session) {
       abline(a = 0, b = 1, lwd = 2, lty = 2, col = "gray")
     }
     
-    donnees_modele <- read.table(input$fichier_modele_rf$datapath, header = TRUE, sep = ",")
-    model_rf <- fonctionRF(donnees_modele, param_interet <- "X1.1")
+    #donnees_modele <- read.table(input$fichier_modele_rf$datapath, header = TRUE, sep = ",")
+    model_rf <- fonctionRF(donnees(), input$interet )
     
     res <- getPrecision_Recall_FScore(model_rf[[4]])
     
@@ -278,12 +283,12 @@ server <- function(input, output, session) {
     })
     
     output$courbe_roc_rf <- renderPlot({
-      afficheROC(model_rf[[1]], model_rf[[3]], param_interet)
+      afficheROC(model_rf[[1]], model_rf[[3]], input$interet)
     })
   })
   
-  observeEvent(input$lancer_modele_svm, {
-    req(input$fichier_modele_svm$datapath)
+  observeEvent(input$analyser, {
+    #req(input$fichier_modele_svm$datapath)
     
     getPrecision_Recall_FScore <- function(mat_conf) {
       #On extrait les valeurs de la matrice de confusion
@@ -425,13 +430,12 @@ server <- function(input, output, session) {
       }
     }
     
-    donnees_modele_svm <- read.table(input$fichier_modele_svm$datapath, header = TRUE, sep = ",")
-    
+    #donnees_modele_svm <- read.table(input$fichier_modele_svm$datapath, header = TRUE, sep = ",")
     #SVM Linéaire
-    model_svm <- fonctionSVM_lineaire(donnees_modele_svm, param_interet <- "X1.2")
+    model_svm <- fonctionSVM_lineaire(donnees(), input$interet)
     
     #SMV Radial
-    model_svmr <- fonctionSVM_radial(donnees_modele_svm, param_interet <- "X1.2")
+    model_svmr <- fonctionSVM_radial(donnees(), input$interet )
     
     res_l <- getPrecision_Recall_FScore(model_svm[[4]])
     res_r <- getPrecision_Recall_FScore(model_svmr[[4]])
@@ -449,24 +453,26 @@ server <- function(input, output, session) {
     })
     
     output$courbe_roc_svm <- renderPlot({
-      afficheROC_SVM(model_svm[[1]], model_svm[[3]], param_interet, "linéaire")
+      afficheROC_SVM(model_svm[[1]], model_svm[[3]], input$interet, "linéaire")
     })
     
     output$courbe_roc_svmr <- renderPlot({
-      afficheROC_SVM(model_svmr[[1]], model_svm[[3]], param_interet, "radiale")
+      afficheROC_SVM(model_svmr[[1]], model_svm[[3]], input$interet, "radiale")
     })
-    observeEvent(input$button_to_NA, {
+    
+    
+  })
+  # Print les données
+  observeEvent(input$button_to_NA, {
     donnees <- (replace_by_NA(donnees(),input$string_to_replace))
     #Remplacement de tout les NA
     donnees <- replace_missing_values(donnees,input$numericMethod, input$categoricalMethod)
     
     output$myDataTable <- renderTable(donnees())
     
-  })
-  # Print les données
- output$myDataTable <- renderTable(donnees())
   
   })
+  output$myDataTable <- renderTable(donnees())
   
 }
 
