@@ -1,9 +1,9 @@
-install.packages("caTools")
-install.packages("caret")
-install.packages("e1071")
-install.packages("ROCR")
-install.packages("pROC")
-install.packages("plotly")
+#install.packages("caTools")
+#install.packages("caret")
+#install.packages("e1071")
+#install.packages("ROCR")
+#install.packages("pROC")
+#install.packages("plotly")
 
 library(caTools)
 library(caret)
@@ -98,17 +98,26 @@ afficheROCRegressionLogistique <- function(modele,donnees_test,interet){
   #Prédiction des probabilités avec le modèle svm sur le jeu de données de test
   pred_prob <- predict(modele, newdata = donnees_test, type = "response")
   
+  print(pred_prob)
+  
+  #Extraction des probabilités associées à la classe positive (2ème colonne)
+  pred_positive <- pred_prob
+  
   #Obtention des vraies étiquettes (valeurs de la variable cible) à partir du jeu de données de test
   true_labels <- donnees_test[[interet]]
   
-  roc_obj <- roc(true_labels, pred_prob)
+  #Création d'un objet de performance en utilisant les probabilités prédites et les vraies étiquettes
+  perf <- prediction(pred_positive, true_labels)
   
   #AUC
-  auc <- auc(roc_obj)
-  cat("AUC = ", auc)
+  auc <- performance(perf, "auc")
+  cat("AUC = ", auc@y.values[[1]])
+  
+  #TPR FPR
+  pred3 <- performance(perf, "tpr","fpr")
   
   #ROC curve
-  plot(roc_obj,main="ROC Curve pour la Régression Logistique",col=2,lwd=2)
+  plot(pred3,main="ROC Curve pour la Régression Logistique",col=2,lwd=2)
   abline(a=0,b=1,lwd=2,lty=2,col="gray")
 }
 
