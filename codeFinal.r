@@ -448,7 +448,7 @@ server <- function(input, output, session) {
     })
     
     output$courbe_roc_svmr <- renderPlot({
-      afficheROC_SVM(model_svmr[[1]], model_svm[[3]], input$interet, "radiale")
+      afficheROC_SVM(model_svmr[[1]], model_svmr[[3]], input$interet, "radiale")
     })
     
     
