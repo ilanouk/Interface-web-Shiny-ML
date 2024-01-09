@@ -12,11 +12,58 @@ library(ROCR)
 library(pROC)
 library(plotly)
 
+########################################
+#Obtenir les variables dependantes (binaires) et independantes (n_val > 2)
+########################################
+obtenirVariables_dependantes_independantes <- function(donnees){
+  #On trie les variables potentielles dépendantes et potentielles indépendantes
+  variables_dependantes_potentielles <- character(0)
+  variables_independantes_potentielles <- character(0)
+  
+  for (col in names(donnees)) {
+    unique_vals <- unique(donnees[[col]])
+    
+    #On vérifie si la variable a seulement deux niveaux (binaire)
+    if (length(unique_vals) == 2) {
+      variables_dependantes_potentielles <- c(variables_dependantes_potentielles, col)
+    }
+    else{
+      variables_independantes_potentielles <- c(variables_independantes_potentielles, col)
+    }
+    
+    
+  }
+  
+  #On affiche les variables potentielles dépendantes
+  print(variables_dependantes_potentielles)
+  cat('\n\n')
+  #On affiche les variables potentielles indépendantes
+  print(variables_independantes_potentielles)
+  
+  return(list(variables_dependantes_potentielles,variables_independantes_potentielles))
+
+}
+
+
+var <- obtenirVariables_dependantes_independantes(donnees)
+liste_var_dep <- var[[1]]
+liste_var_indep <- var[[2]]
+
+print(liste_var_dep)
+cat('\n\n')
+print(liste_var_indep)
+##########################################
+
+
+#########################################
+#Code à retirer
+#########################################
 donnees <- read.table("C:\\Users\\user\\Downloads\\maj_data.data", header = TRUE, sep = ",")
 
 param_interet <- "X1.2"
 param_independant_1 <- "X30"
 param_independant_2 <- "X18"
+##########################################
 
 #Fonction permettant l'application du modèle svm lineaire
 # parametres : le dataset, le paramètre d'interet
