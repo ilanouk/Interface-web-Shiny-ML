@@ -9,8 +9,6 @@
 # install.packages("e1071")
 # install.packages("pROC")
 # install.packages("plotly")
-# install.packages("varImp")
-# install.packages("mlbench")
 
 
 source('utils.r')
@@ -25,8 +23,6 @@ library(ROCR)
 library(e1071)
 library(pROC)
 library(plotly)
-library(varImp)
-library(mlbench)
 
 
 # Interface utilisateur Shiny
