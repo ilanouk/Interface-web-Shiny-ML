@@ -9,6 +9,8 @@
 # install.packages("e1071")
 # install.packages("pROC")
 # install.packages("plotly")
+# install.packages("varImp")
+# install.packages("mlbench")
 
 
 source('utils.r')
@@ -23,6 +25,8 @@ library(ROCR)
 library(e1071)
 library(pROC)
 library(plotly)
+library(varImp)
+library(mlbench)
 
 
 # Interface utilisateur Shiny
@@ -76,16 +80,29 @@ ui <- fluidPage(
                    )
           ),
           tabPanel("RandomForest",
-                   actionButton("lancer_modele_rf", "Lancer le modèle RandomForest"),
-                   textOutput("resultats_modele_rf"),
-                   plotOutput("courbe_roc_rf")
+                   tabsetPanel(
+                     tabPanel("Modélisation",
+                               actionButton("lancer_modele_rf", "Lancer le modèle RandomForest"),
+                               textOutput("resultats_modele_rf"),
+                               plotOutput("courbe_roc_rf")
+                     ),
+                     tabPanel("Features importance", plotOutput("features_imp_rf"))
+                   )
           ),
           tabPanel("SVM",
-                   actionButton("lancer_modele_svm", "Lancer le modèle SVM"),
-                   textOutput("resultats_modele_svm"),
-                   plotOutput("courbe_roc_svm"),
-                   textOutput("resultats_modele_svmr"),
-                   plotOutput("courbe_roc_svmr")
+                   tabsetPanel(
+                     tabPanel("Modélisation",
+                               actionButton("lancer_modele_svm", "Lancer le modèle SVM"),
+                               textOutput("resultats_modele_svm"),
+                               plotOutput("courbe_roc_svm"),
+                               textOutput("resultats_modele_svmr"),
+                               plotOutput("courbe_roc_svmr")
+                     ),
+                     tabPanel("Features importance",
+                              tabPanel("SVM Linéaire",plotOutput("features_imp_svm")),
+                              tabPanel("SVM Radiale",plotOutput("features_imp_svmr"))
+                     ),
+                   )
           ),
           tabPanel("Régression Logistique", 
                    tabsetPanel(
@@ -94,6 +111,7 @@ ui <- fluidPage(
                               textOutput("resultats_modele_rlog"),
                               plotOutput("courbe_roc_rlog")
                      ),
+                     tabPanel("Features importance", plotOutput("features_imp_rlog")),
                      tabPanel("Visualisation 3D", plotlyOutput("nuage_points_3d"))
                    )
           )
@@ -278,6 +296,34 @@ server <- function(input, output, session) {
       abline(a = 0, b = 1, lwd = 2, lty = 2, col = "gray")
     }
     
+    obtenirFeaturesImportanceRF <- function(donnees_rf){
+      #Extraction des scores d'importance des variables
+      importance_rf <- varImp(donnees_rf)
+      
+      #Création d'un data frame avec les noms des variables et les scores d'importance
+      i_scores <- data.frame(
+        var = rownames(importance_rf),
+        Overall = runif(nrow(importance_rf)),
+        Importance = importance_rf$Overall  # À ajuster en fonction de la structure de importance_rf
+      )
+      
+      #Convertir 'var' en facteur
+      i_scores$var <- as.factor(i_scores$var)
+      
+      #Création d'un graphique à barres horizontales
+      i_horizontal <- ggplot(data = i_scores) +
+        geom_bar(
+          stat = "identity",
+          mapping = aes(x = Overall, y = var, fill = var),
+          show.legend = FALSE,
+          width = 0.5  #Ajuster la largeur selon les besoins
+        ) +
+        labs(x = NULL, y = NULL) +
+        theme_minimal()
+      
+      plot(i_horizontal)
+    }
+    
     #donnees_modele <- read.table(input$fichier_modele_rf$datapath, header = TRUE, sep = ",")
     model_rf <- fonctionRF(donnees(), input$interet )
     
@@ -291,6 +337,10 @@ server <- function(input, output, session) {
     
     output$courbe_roc_rf <- renderPlot({
       afficheROC(model_rf[[1]], model_rf[[3]], input$interet)
+    })
+    
+    output$features_imp_rf <- renderPlot({
+      obtenirFeaturesImportanceRF(model_rf[[1]])
     })
   })
   
@@ -436,12 +486,91 @@ server <- function(input, output, session) {
       }
     }
     
+    obtenirFeaturesImportanceSVM <- function(svmod, interet){
+      
+      #Dans le contexte des modèles SVM , les coefficients négatifs pour certaines variables indiquent
+      # l'impact inverse de ces variables sur la classe prédite. Cela signifie que lorsque la valeur
+      # d'une variable avec un coefficient négatif augmente, la probabilité d'appartenir à la classe positive diminue.
+      
+    
+      #On extrait les noms des variables (sauf la variable d'intérêt, et l'intercept (notion statistique d'equilibrage))
+      coefs_svm <- coef(svmod)[-1]
+      var_names <- setdiff(names(coefs_svm), param_interet)
+    
+      poids_normalises <- coefs_svm / sqrt(sum(coefs_svm^2))
+    
+      #Création d'un data frame avec les noms des variables et les scores d'importance
+      var_importance <- data.frame(
+        var = var_names,
+        Importance = poids_normalises
+      )
+    
+      #Création d'un graphique à barres horizontales
+      i_horizontal <- ggplot(data = var_importance) +
+        geom_bar(
+          stat = "identity",
+          mapping = aes(x = Importance, y = var, fill = var),
+          show.legend = FALSE,
+          width = 0.5  # Adjust the width as needed
+        ) +
+        ggtitle("SVM Linéaire") +
+        labs(x = NULL, y = NULL) +
+        theme_minimal()
+      
+      plot(i_horizontal)
+    
+    }
+    
+    obtenirFeaturesImportanceSVMR <- function(svmod, interet) {
+      
+      #On extrait les coefficients du modèle SVM radial
+      sv_svmr <- svmod$SV
+      coefs_svmr <- svmod$coefs
+      
+      #Supprime le terme de biais (intercept)
+      coefs_svmr <- coefs_svmr[-1]
+      
+      #On s'assure que le vecteur support et les coefficients soient de la meme longueur
+      min_length <- min(nrow(sv_svmr), length(coefs_svmr))
+      sv_svmr <- sv_svmr[1:min_length, , drop = FALSE]
+      coefs_svmr <- coefs_svmr[1:min_length]
+      
+      #L'approche que nous avons utilisée dans le code précédent consiste à considérer la moyenne du produit 
+      # des vecteurs de support et de leurs coefficients correspondants pour chaque variable. Cela donne une mesure 
+      # relative de l'importance de chaque variable dans le contexte du modèle SVM radial.
+      variable_importance <- colMeans(sv_svmr * coefs_svmr)
+      
+      #Normalise les coefficients pour obtenir l'importance relative
+      poids_normalises <- variable_importance / sqrt(sum(variable_importance))
+      
+      #On crée un data frame pour stocker les noms de variables et leur importance
+      var_importance <- data.frame(
+        var = colnames(svmod$SV),
+        Importance = poids_normalises
+      )
+      
+      #On crée un graphique pour visualiser l'importance des variables
+      i_horizontal <- ggplot(data = var_importance) +
+        geom_bar(
+          stat = "identity",
+          mapping = aes(x = Importance, y = var, fill = var),
+          show.legend = FALSE,
+          width = 0.5  # Ajuste la largeur au besoin
+        ) +
+        ggtitle("SVM Radiale") +
+        labs(x = NULL, y = NULL) +
+        theme_minimal()
+      
+      plot(i_horizontal)
+    }
+    
+    
     #donnees_modele_svm <- read.table(input$fichier_modele_svm$datapath, header = TRUE, sep = ",")
     #SVM Linéaire
     model_svm <- fonctionSVM_lineaire(donnees(), input$interet)
     
     #SMV Radial
-    model_svmr <- fonctionSVM_radial(donnees(), input$interet )
+    model_svmr <- fonctionSVM_radial(donnees(), input$interet)
     
     res_l <- getPrecision_Recall_FScore(model_svm[[4]])
     res_r <- getPrecision_Recall_FScore(model_svmr[[4]])
@@ -464,6 +593,14 @@ server <- function(input, output, session) {
     
     output$courbe_roc_svmr <- renderPlot({
       afficheROC_SVM(model_svmr[[1]], model_svmr[[3]], input$interet, "radiale")
+    })
+    
+    output$features_imp_svm <- renderPlot({
+      obtenirFeaturesImportanceSVM(model_svm[[1]], input$interet)
+    })
+    
+    output$features_imp_svmr <- renderPlot({
+      obtenirFeaturesImportanceSVMR(model_svmr[[1]], input$interet)
     })
     
     
@@ -564,6 +701,33 @@ server <- function(input, output, session) {
       abline(a=0,b=1,lwd=2,lty=2,col="gray")
     }
     
+    obtenirFeaturesImportanceRegL <- function(reglog){
+      #Extraction des scores d'importance des variables
+      importance_log <- varImp(reglog)
+      
+      #Création d'un data frame avec les noms des variables et les scores d'importance
+      i_scores <- data.frame(
+        var = rownames(importance_log),
+        Overall = runif(nrow(importance_log)),
+        Importance = importance_log$Overall  # À ajuster en fonction de la structure de importance_rf
+      )
+      
+      #Convertir 'var' en facteur
+      i_scores$var <- as.factor(i_scores$var)
+      
+      #Création d'un graphique à barres horizontales
+      i_horizontal <- ggplot(data = i_scores) +
+        geom_bar(
+          stat = "identity",
+          mapping = aes(x = Overall, y = var, fill = var),
+          show.legend = FALSE,
+          width = 0.5  #Ajuster la largeur selon les besoins
+        ) +
+        labs(x = NULL, y = NULL) +
+        theme_minimal()
+      
+      plot(i_horizontal)
+    }
     
     visualisationRegressionLogistique <- function(modele, interet, var_independante_1, var_independante_2) {
       # Utilisation des données de test du modèle
@@ -615,6 +779,10 @@ server <- function(input, output, session) {
       
       output$nuage_points_3d <- renderPlotly({
         visualisationRegressionLogistique(model_log, param_interet, param_independant_1, param_independant_2)
+      })
+      
+      output$features_imp_rlog <- renderPlot({
+        obtenirFeaturesImportanceRegL(donnees_log)
       })
       
     }
