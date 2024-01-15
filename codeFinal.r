@@ -7,6 +7,9 @@
 # install.packages("ggplot2")
 # install.packages("ROCR")
 # install.packages("e1071")
+# install.packages("pROC")
+# install.packages("plotly")
+
 
 source('utils.r')
 library(shiny)
@@ -18,6 +21,8 @@ library(caret)
 library(yardstick)
 library(ROCR)
 library(e1071)
+library(pROC)
+library(plotly)
 
 
 # Interface utilisateur Shiny
@@ -54,36 +59,58 @@ ui <- fluidPage(
                     
                   )
         ),
-      tabsetPanel(
-        tabPanel("Comparaison de Deux Variables", 
-                 tabsetPanel(
-                   tabPanel("Nuage de Points", plotOutput("nuage_points")),
-                   tabPanel("Caractéristiques par Valeur", plotOutput("caracteristiques_valeurs")),
-                   tabPanel("Tableau Récapitulatif", tableOutput("tableau_recap"))
-                 )
-        ),
-        tabPanel("Visualisation d'une Seule Variable", 
-                 tabsetPanel(
-                   tabPanel("Diagramme en Barre", plotOutput("barplot")),
-                   tabPanel("Boîte à Moustaches", plotOutput("boxplot")),
-                   tabPanel("Courbe des Fréquences Cumulées", plotOutput("courbe_freq_cumulee")),
-                   tabPanel("Tableau Statistique", tableOutput("tableau_stats"))
-                 )
-        ),
-        tabPanel("RandomForest",
-                 #fileInput("fichier_modele_rf", "Choisir le fichier .data"),
-                 actionButton("lancer_modele_rf", "Lancer le modèle RandomForest"),
-                 textOutput("resultats_modele_rf"),
-                 plotOutput("courbe_roc_rf")
-        ),
-        tabPanel("SVM",
-                 #fileInput("fichier_modele_svm", "Choisir le fichier .data"),
-                 actionButton("lancer_modele_svm", "Lancer le modèle SVM"),
-                 textOutput("resultats_modele_svm"),
-                 plotOutput("courbe_roc_svm"),
-                 textOutput("resultats_modele_svmr"),
-                 plotOutput("courbe_roc_svmr")
-                )
+        tabsetPanel(
+          tabPanel("Comparaison de Deux Variables", 
+                   tabsetPanel(
+                     tabPanel("Nuage de Points", plotOutput("nuage_points")),
+                     tabPanel("Boxplot", plotOutput("boxplot_tab")),
+                     tabPanel("Tableau Récapitulatif", tableOutput("tableau_recap"))
+                   )
+          ),
+          tabPanel("Visualisation d'une Seule Variable", 
+                   tabsetPanel(
+                     tabPanel("Diagramme en Barre", plotOutput("barplot")),
+                     tabPanel("Boîte à Moustaches", plotOutput("boxplot")),
+                     tabPanel("Courbe des Fréquences Cumulées", plotOutput("courbe_freq_cumulee")),
+                     tabPanel("Tableau Statistique", tableOutput("tableau_stats"))
+                   )
+          ),
+          tabPanel("RandomForest",
+                   tabsetPanel(
+                     tabPanel("Modélisation",
+                               actionButton("lancer_modele_rf", "Lancer le modèle RandomForest"),
+                               textOutput("resultats_modele_rf"),
+                               plotOutput("courbe_roc_rf")
+                     ),
+                     tabPanel("Features importance", plotOutput("features_imp_rf"))
+                   )
+          ),
+          tabPanel("SVM",
+                   tabsetPanel(
+                     tabPanel("Modélisation",
+                               actionButton("lancer_modele_svm", "Lancer le modèle SVM"),
+                               textOutput("resultats_modele_svm"),
+                               plotOutput("courbe_roc_svm"),
+                               textOutput("resultats_modele_svmr"),
+                               plotOutput("courbe_roc_svmr")
+                     ),
+                     tabPanel("Features importance",
+                              tabPanel("SVM Linéaire",plotOutput("features_imp_svm")),
+                              tabPanel("SVM Radiale",plotOutput("features_imp_svmr"))
+                     ),
+                   )
+          ),
+          tabPanel("Régression Logistique", 
+                   tabsetPanel(
+                     tabPanel("Modélisation",
+                              actionButton("lancer_modele_rlog", "Lancer le modèle Régression Logistique"),
+                              textOutput("resultats_modele_rlog"),
+                              plotOutput("courbe_roc_rlog")
+                     ),
+                     tabPanel("Features importance", plotOutput("features_imp_rlog")),
+                     tabPanel("Visualisation 3D", plotlyOutput("nuage_points_3d"))
+                   )
+          )
         )
       )
     )
@@ -95,6 +122,7 @@ server <- function(input, output, session) {
   
   donnees <- reactive({
     req(input$fichier)
+    
     read.table(input$fichier$datapath, header = TRUE, sep = ",")
   })
   
@@ -118,30 +146,17 @@ server <- function(input, output, session) {
       req(input$colonne2)
       
       # Créer le nuage de points
-      nuage_points_gg <- ggplot(donnees(), aes(x = !!sym(input$colonne1), y = !!sym(input$colonne2), color = as.factor(donnees()[[input$colonne2]]))) +
-        geom_point() +
-        labs(title = paste("Nuage de Points entre", input$colonne1, "et", input$colonne2),
-             x = input$colonne1, y = input$colonne2) +
-        theme_minimal()
-      
-      # Afficher le nuage de points
       output$nuage_points <- renderPlot({
-        print(nuage_points_gg)
-      })
-      
-      # Créer les caractéristiques par valeur
-      caracteristiques_valeurs_gg <- ggplot(donnees(), aes_string(x = input$colonne1, y = input$colonne2)) +
-        geom_boxplot() +
-        labs(title = paste("Caractéristiques par Valeur pour", input$colonne1, "et", input$colonne2),
-             x = input$colonne1, y = input$colonne2) +
-        coord_flip() +
-        theme_minimal() 
-      #scale_y_continuous(limits = c(min(donnees()[[input$colonne2]]), max(donnees()[[input$colonne2]])))
-      
-      
-      # Afficher les caractéristiques par valeur
-      output$caracteristiques_valeurs <- renderPlot({
-        print(caracteristiques_valeurs_gg)
+        options(scipen=999)
+        x.var <- input$colonne1
+        y.var <- input$colonne2
+        
+        plot(x = donnees()[, x.var], y = donnees()[, y.var], col = as.factor(donnees()[, y.var]),
+             las = 2, cex.axis = 0.7,
+             main = paste(y.var, "en fonction de", x.var),
+             xlab = x.var, ylab = y.var, cex.lab = 1.2)
+        
+        options(scipen=0)
       })
       
       tableau_recap <- as.data.frame(t(sapply(donnees()[, c(input$colonne1, input$colonne2), drop = FALSE], summary)))
@@ -166,6 +181,17 @@ server <- function(input, output, session) {
         print(gg)
       })
       
+      # Afficher 2 boxplots côte à côte avec ggplot2
+      output$boxplot_tab <- renderPlot({
+        ggplot(donnees(), aes_string(x = input$colonne1, y = input$colonne2)) +
+          geom_boxplot(position = "dodge") +
+          labs(title = paste("Boxplots de la comparaison entre", input$colonne1, "et", input$colonne2),
+               x = input$colonne1, y = input$colonne2) +
+          theme_minimal()
+      })
+      
+      
+      
       ####### VISU SIMPLE #######
       
     } else if (input$type_viz == "Visualisation d'une Seule Variable") {
@@ -183,15 +209,11 @@ server <- function(input, output, session) {
       })
       
       # Créer la boîte à moustaches
-      boxplot_gg <- ggplot(donnees(), aes_string(y = input$colonne1)) +
-        geom_boxplot() +
-        labs(title = paste("Boîte à Moustaches pour", input$colonne1),
-             x = "", y = input$colonne1) +
-        theme_minimal()
-      
-      # Afficher la boîte à moustaches
       output$boxplot <- renderPlot({
-        print(boxplot_gg)
+        boxplot(donnees()[[input$colonne1]], col = grey(0.8),
+                main = paste("Boîte à Moustaches pour", input$colonne1),
+                ylab = input$colonne1, las = 1)
+        rug(donnees()[[input$colonne1]], side = 2)
       })
       
       # Créer la courbe des fréquences cumulées
@@ -218,8 +240,7 @@ server <- function(input, output, session) {
   
   ###### MODELE #######
   
-  observeEvent(input$analyser, {
-    #req(input$fichier_modele_rf$datapath)
+  observeEvent(input$lancer_modele_rf, {
     
     getPrecision_Recall_FScore <- function(mat_conf) {
       tp <- mat_conf[2, 2]
@@ -271,6 +292,34 @@ server <- function(input, output, session) {
       abline(a = 0, b = 1, lwd = 2, lty = 2, col = "gray")
     }
     
+    obtenirFeaturesImportanceRF <- function(donnees_rf){
+      #Extraction des scores d'importance des variables
+      importance_rf <- varImp(donnees_rf)
+      
+      #Création d'un data frame avec les noms des variables et les scores d'importance
+      i_scores <- data.frame(
+        var = rownames(importance_rf),
+        Overall = runif(nrow(importance_rf)),
+        Importance = importance_rf$Overall  # À ajuster en fonction de la structure de importance_rf
+      )
+      
+      #Convertir 'var' en facteur
+      i_scores$var <- as.factor(i_scores$var)
+      
+      #Création d'un graphique à barres horizontales
+      i_horizontal <- ggplot(data = i_scores) +
+        geom_bar(
+          stat = "identity",
+          mapping = aes(x = Overall, y = var, fill = var),
+          show.legend = FALSE,
+          width = 0.5  #Ajuster la largeur selon les besoins
+        ) +
+        labs(x = NULL, y = NULL) +
+        theme_minimal()
+      
+      plot(i_horizontal)
+    }
+    
     #donnees_modele <- read.table(input$fichier_modele_rf$datapath, header = TRUE, sep = ",")
     model_rf <- fonctionRF(donnees(), input$interet )
     
@@ -285,10 +334,13 @@ server <- function(input, output, session) {
     output$courbe_roc_rf <- renderPlot({
       afficheROC(model_rf[[1]], model_rf[[3]], input$interet)
     })
+    
+    output$features_imp_rf <- renderPlot({
+      obtenirFeaturesImportanceRF(model_rf[[1]])
+    })
   })
   
-  observeEvent(input$analyser, {
-    #req(input$fichier_modele_svm$datapath)
+  observeEvent(input$lancer_modele_svm, {
     
     getPrecision_Recall_FScore <- function(mat_conf) {
       #On extrait les valeurs de la matrice de confusion
@@ -430,12 +482,91 @@ server <- function(input, output, session) {
       }
     }
     
+    obtenirFeaturesImportanceSVM <- function(svmod, interet){
+      
+      #Dans le contexte des modèles SVM , les coefficients négatifs pour certaines variables indiquent
+      # l'impact inverse de ces variables sur la classe prédite. Cela signifie que lorsque la valeur
+      # d'une variable avec un coefficient négatif augmente, la probabilité d'appartenir à la classe positive diminue.
+      
+    
+      #On extrait les noms des variables (sauf la variable d'intérêt, et l'intercept (notion statistique d'equilibrage))
+      coefs_svm <- coef(svmod)[-1]
+      var_names <- setdiff(names(coefs_svm), param_interet)
+    
+      poids_normalises <- coefs_svm / sqrt(sum(coefs_svm^2))
+    
+      #Création d'un data frame avec les noms des variables et les scores d'importance
+      var_importance <- data.frame(
+        var = var_names,
+        Importance = poids_normalises
+      )
+    
+      #Création d'un graphique à barres horizontales
+      i_horizontal <- ggplot(data = var_importance) +
+        geom_bar(
+          stat = "identity",
+          mapping = aes(x = Importance, y = var, fill = var),
+          show.legend = FALSE,
+          width = 0.5  # Adjust the width as needed
+        ) +
+        ggtitle("SVM Linéaire") +
+        labs(x = NULL, y = NULL) +
+        theme_minimal()
+      
+      plot(i_horizontal)
+    
+    }
+    
+    obtenirFeaturesImportanceSVMR <- function(svmod, interet) {
+      
+      #On extrait les coefficients du modèle SVM radial
+      sv_svmr <- svmod$SV
+      coefs_svmr <- svmod$coefs
+      
+      #Supprime le terme de biais (intercept)
+      coefs_svmr <- coefs_svmr[-1]
+      
+      #On s'assure que le vecteur support et les coefficients soient de la meme longueur
+      min_length <- min(nrow(sv_svmr), length(coefs_svmr))
+      sv_svmr <- sv_svmr[1:min_length, , drop = FALSE]
+      coefs_svmr <- coefs_svmr[1:min_length]
+      
+      #L'approche que nous avons utilisée dans le code précédent consiste à considérer la moyenne du produit 
+      # des vecteurs de support et de leurs coefficients correspondants pour chaque variable. Cela donne une mesure 
+      # relative de l'importance de chaque variable dans le contexte du modèle SVM radial.
+      variable_importance <- colMeans(sv_svmr * coefs_svmr)
+      
+      #Normalise les coefficients pour obtenir l'importance relative
+      poids_normalises <- variable_importance / sqrt(sum(variable_importance))
+      
+      #On crée un data frame pour stocker les noms de variables et leur importance
+      var_importance <- data.frame(
+        var = colnames(svmod$SV),
+        Importance = poids_normalises
+      )
+      
+      #On crée un graphique pour visualiser l'importance des variables
+      i_horizontal <- ggplot(data = var_importance) +
+        geom_bar(
+          stat = "identity",
+          mapping = aes(x = Importance, y = var, fill = var),
+          show.legend = FALSE,
+          width = 0.5  # Ajuste la largeur au besoin
+        ) +
+        ggtitle("SVM Radiale") +
+        labs(x = NULL, y = NULL) +
+        theme_minimal()
+      
+      plot(i_horizontal)
+    }
+    
+    
     #donnees_modele_svm <- read.table(input$fichier_modele_svm$datapath, header = TRUE, sep = ",")
     #SVM Linéaire
     model_svm <- fonctionSVM_lineaire(donnees(), input$interet)
     
     #SMV Radial
-    model_svmr <- fonctionSVM_radial(donnees(), input$interet )
+    model_svmr <- fonctionSVM_radial(donnees(), input$interet)
     
     res_l <- getPrecision_Recall_FScore(model_svm[[4]])
     res_r <- getPrecision_Recall_FScore(model_svmr[[4]])
@@ -457,11 +588,205 @@ server <- function(input, output, session) {
     })
     
     output$courbe_roc_svmr <- renderPlot({
-      afficheROC_SVM(model_svmr[[1]], model_svm[[3]], input$interet, "radiale")
+      afficheROC_SVM(model_svmr[[1]], model_svmr[[3]], input$interet, "radiale")
+    })
+    
+    output$features_imp_svm <- renderPlot({
+      obtenirFeaturesImportanceSVM(model_svm[[1]], input$interet)
+    })
+    
+    output$features_imp_svmr <- renderPlot({
+      obtenirFeaturesImportanceSVMR(model_svmr[[1]], input$interet)
     })
     
     
   })
+  
+  
+  #REGRESSION LOGISTIQUE
+  observeEvent(input$lancer_modele_rlog, {
+    
+    getPrecision_Recall_FScore <- function(mat_conf) {
+      #On extrait les valeurs de la matrice de confusion
+      tp <- mat_conf[2, 2]  # True Positives
+      fp <- mat_conf[1, 2]  # False Positives
+      fn <- mat_conf[2, 1]  # False Negatives
+      
+      print(tp)
+      print(fp)
+      print(fn)
+      
+      # Calculer la précision, le rappel et le F-score
+      precision <- tp / (tp + fp)
+      recall <- tp / (tp + fn)
+      fscore <- 2 * (precision * recall) / (precision + recall)
+      
+      
+      # Afficher les résultats
+      cat("Precision:", precision, "\n")
+      cat("Recall:", recall, "\n")
+      cat("Fscore:", fscore, "\n")
+      
+      return(c(precision,recall,fscore))
+    }
+    
+    fonctionRegressionLogistique<- function(donnees, interet, var_independante_1, var_independante_2) {
+      set.seed(123)
+      
+      #Faire de la variable dependante un facteur (categorique)
+      #donnees[[interet]] pour donnees$interet
+      donnees[[interet]] <- as.factor(donnees[[interet]])
+      
+      data_interet <- donnees[, c(interet, var_independante_1, var_independante_2)]
+      
+      #echantillonnage trainset et testset
+      indices <- createDataPartition(data_interet[[interet]], p = 0.7, list = FALSE)
+      data_train <- data_interet[indices, ]
+      data_test <- data_interet[-indices, ]
+      
+      #construction du modele
+      my_formula <- reformulate(c(var_independante_1, var_independante_2), response = interet)
+      modele <- glm(formula = my_formula, data = data_train, family = "binomial")
+      
+      print(modele)
+      
+      cat("\n\n")
+      
+      #prediction
+      pred <- predict(modele, data_test)
+      
+      #Définir un seuil
+      seuil <- 0.5
+      
+      #Convertir les probabilités en classes en fonction du seuil
+      classes_predites <- ifelse(pred >= seuil, 2, 1)
+      
+      #Matrice de confusion
+      mat_conf <- table(observed = data_test[[interet]], predicted = classes_predites)
+      cat("Matrice de confusion sur de nouvelles données:\n\n")
+      print(mat_conf)
+      
+      return(list(modele, data_train, data_test, mat_conf))
+    }
+    
+    afficheROCRegressionLogistique <- function(modele,donnees_test,interet){
+      
+      #Prédiction des probabilités avec le modèle svm sur le jeu de données de test
+      pred_prob <- predict(modele, newdata = donnees_test, type = "response")
+      
+      print(pred_prob)
+      
+      #Extraction des probabilités associées à la classe positive (2ème colonne)
+      pred_positive <- pred_prob
+      
+      #Obtention des vraies étiquettes (valeurs de la variable cible) à partir du jeu de données de test
+      true_labels <- donnees_test[[interet]]
+      
+      #Création d'un objet de performance en utilisant les probabilités prédites et les vraies étiquettes
+      perf <- prediction(pred_positive, true_labels)
+      
+      #AUC
+      auc <- performance(perf, "auc")
+      cat("AUC = ", auc@y.values[[1]])
+      
+      #TPR FPR
+      pred3 <- performance(perf, "tpr","fpr")
+      
+      #ROC curve
+      plot(pred3,main="ROC Curve pour la Régression Logistique",col=2,lwd=2)
+      abline(a=0,b=1,lwd=2,lty=2,col="gray")
+    }
+    
+    obtenirFeaturesImportanceRegL <- function(reglog){
+      #Extraction des scores d'importance des variables
+      importance_log <- varImp(reglog)
+      
+      #Création d'un data frame avec les noms des variables et les scores d'importance
+      i_scores <- data.frame(
+        var = rownames(importance_log),
+        Overall = runif(nrow(importance_log)),
+        Importance = importance_log$Overall  # À ajuster en fonction de la structure de importance_rf
+      )
+      
+      #Convertir 'var' en facteur
+      i_scores$var <- as.factor(i_scores$var)
+      
+      #Création d'un graphique à barres horizontales
+      i_horizontal <- ggplot(data = i_scores) +
+        geom_bar(
+          stat = "identity",
+          mapping = aes(x = Overall, y = var, fill = var),
+          show.legend = FALSE,
+          width = 0.5  #Ajuster la largeur selon les besoins
+        ) +
+        labs(x = NULL, y = NULL) +
+        theme_minimal()
+      
+      plot(i_horizontal)
+    }
+    
+    visualisationRegressionLogistique <- function(modele, interet, var_independante_1, var_independante_2) {
+      # Utilisation des données de test du modèle
+      data_test <- modele[[3]]
+      
+      # Prédiction des probabilités avec le modèle
+      proba <- predict(modele[[1]], newdata = data_test, type = "response")
+      
+      # Création d'un graphique en 3D avec les données de test
+      plot_ly(data_test, x = ~data_test[[var_independante_1]], 
+              y = ~data_test[[var_independante_2]], 
+              z = ~proba,
+              color = ~data_test[[interet]],
+              colors = c("blue", "red"),
+              type = "scatter3d", mode = "markers") %>%
+        layout(scene = list(xaxis = list(title = var_independante_1),
+                            yaxis = list(title = var_independante_2),
+                            zaxis = list(title = paste("Probabilité de", interet))))
+    }
+    
+    executerRegressionLogistique <- function(donnees, param_interet, param_independant_1, param_independant_2){
+      
+      model_log <- fonctionRegressionLogistique(donnees, param_interet, param_independant_1, param_independant_2)
+      
+      #Modèle
+      donnees_log <- model_log[[1]]
+      
+      #Train_set
+      donnees_train <- model_log[[2]]
+      
+      #Test_set
+      donnees_test <- model_log[[3]]
+      
+      #Matrice de confusion
+      mat_c <- model_log[[4]]
+      
+      #Precision, Recall, F1-score
+      res <- getPrecision_Recall_FScore(mat_c)
+      
+      output$resultats_modele_rlog <- renderText({
+        paste("Precision:", res[1], "\n",
+              "Recall:", res[2], "\n",
+              "Fscore:", res[3], "\n")
+      })
+      
+      output$courbe_roc_rlog <- renderPlot({
+        afficheROCRegressionLogistique(model_log[[1]], model_log[[3]], param_interet)
+      })
+      
+      output$nuage_points_3d <- renderPlotly({
+        visualisationRegressionLogistique(model_log, param_interet, param_independant_1, param_independant_2)
+      })
+      
+      output$features_imp_rlog <- renderPlot({
+        obtenirFeaturesImportanceRegL(donnees_log)
+      })
+      
+    }
+    
+    executerRegressionLogistique(donnees(), input$interet, input$colonne1, input$colonne2)
+    
+  })
+  
   # Print les données
   observeEvent(input$button_to_NA, {
     donnees <- (replace_by_NA(donnees(),input$string_to_replace))
@@ -470,7 +795,7 @@ server <- function(input, output, session) {
     
     output$myDataTable <- renderTable(donnees())
     
-  
+    
   })
   output$myDataTable <- renderTable(donnees())
   
