@@ -190,13 +190,21 @@ server <- function(input, output, session) {
         print(gg)
       })
       
-      # Afficher 2 boxplots côte à côte avec ggplot2
+      ## Créer les boîtes à moustaches côte à côte
       output$boxplot_tab <- renderPlot({
-        ggplot(donnees(), aes_string(x = input$colonne1, y = input$colonne2)) +
-          geom_boxplot(position = "dodge") +
-          labs(title = paste("Boxplots de la comparaison entre", input$colonne1, "et", input$colonne2),
-               x = input$colonne1, y = input$colonne2) +
-          theme_minimal()
+        par(mfrow = c(1, 2))  # Diviser la zone graphique en 2 colonnes
+        
+        # Boxplot pour input$colonne1
+        boxplot(donnees()[[input$colonne1]], col = grey(0.8),
+                main = paste("Boîte à Moustaches pour", input$colonne1),
+                ylab = input$colonne1, las = 1)
+        rug(donnees()[[input$colonne1]], side = 2)
+        
+        # Boxplot pour input$colonne2
+        boxplot(donnees()[[input$colonne2]], col = grey(0.8),
+                main = paste("Boîte à Moustaches pour", input$colonne2),
+                ylab = input$colonne2, las = 1)
+        rug(donnees()[[input$colonne2]], side = 2)
       })
       
       
