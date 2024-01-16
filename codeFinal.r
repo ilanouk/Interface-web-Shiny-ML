@@ -7,6 +7,8 @@
 # install.packages("ggplot2")
 # install.packages("ROCR")
 # install.packages("e1071")
+# install.packages("pROC")
+# install.packages("plotly")
 
 source('utils.r')
 library(shiny)
@@ -18,6 +20,8 @@ library(caret)
 library(yardstick)
 library(ROCR)
 library(e1071)
+library(pROC)
+library(plotly)
 
 
 # Interface utilisateur Shiny
@@ -71,16 +75,40 @@ ui <- fluidPage(
                    )
           ),
           tabPanel("RandomForest",
-                   actionButton("lancer_modele_rf", "Lancer le modèle RandomForest"),
-                   textOutput("resultats_modele_rf"),
-                   plotOutput("courbe_roc_rf")
+                   tabsetPanel(
+                     tabPanel("Modélisation",
+                               actionButton("lancer_modele_rf", "Lancer le modèle RandomForest"),
+                               textOutput("resultats_modele_rf"),
+                               plotOutput("courbe_roc_rf")
+                     ),
+                     tabPanel("Features importance", plotOutput("features_imp_rf"))
+                   )
           ),
           tabPanel("SVM",
-                   actionButton("lancer_modele_svm", "Lancer le modèle SVM"),
-                   textOutput("resultats_modele_svm"),
-                   plotOutput("courbe_roc_svm"),
-                   textOutput("resultats_modele_svmr"),
-                   plotOutput("courbe_roc_svmr")
+                   tabsetPanel(
+                     tabPanel("Modélisation",
+                               actionButton("lancer_modele_svm", "Lancer le modèle SVM"),
+                               textOutput("resultats_modele_svm"),
+                               plotOutput("courbe_roc_svm"),
+                               textOutput("resultats_modele_svmr"),
+                               plotOutput("courbe_roc_svmr")
+                     ),
+                     tabPanel("Features importance",
+                              tabPanel("SVM Linéaire",plotOutput("features_imp_svm")),
+                              tabPanel("SVM Radiale",plotOutput("features_imp_svmr"))
+                     ),
+                   )
+          ),
+          tabPanel("Régression Logistique", 
+                   tabsetPanel(
+                     tabPanel("Modélisation",
+                              actionButton("lancer_modele_rlog", "Lancer le modèle Régression Logistique"),
+                              textOutput("resultats_modele_rlog"),
+                              plotOutput("courbe_roc_rlog")
+                     ),
+                     tabPanel("Features importance", plotOutput("features_imp_rlog")),
+                     tabPanel("Visualisation 3D", plotlyOutput("nuage_points_3d"))
+                   )
           )
         )
       )
