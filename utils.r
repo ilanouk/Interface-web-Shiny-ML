@@ -2,15 +2,15 @@ replace_by_NA <- function(df, value_to_replace) {
   print("in replace by NA")
     # Replace NA values with 0 using dplyr pipe operator
       df_value <- df %>% mutate_all(~ ifelse(. == value_to_replace, NA, .))
-      data <- reactiveVal({df_value})
-    return(data)
+      #data <- reactiveVal({df_value})
+    return(df_value)
 }
 replace_missing_values <- function(df, numericMethod, categoricalMethod) {
 #Fonction qui remplace tout les NA par la méthode choisi par l'utilisateur
-  df_value <- df()
-  for (var in colnames(df())) {
+  df_value <- df
+  for (var in colnames(df_value)) {
   # Replace missing values based on user's choice
-    if (is.numeric(df()[[var]])) {
+    if (is.numeric(df_value[[var]])) {
       if (numericMethod == "Mean") {
         df_value[[var]][is.na(df_value[[var]])] <- mean(df_value[[var]], na.rm = TRUE)
       
@@ -38,33 +38,16 @@ replace_missing_values <- function(df, numericMethod, categoricalMethod) {
       }
     }
   }
-  data <- reactiveVal({df_value})
-  return(data)
-}
-
-
-
-normaliser <- function(data){
-  df <- data()
-  encoded_df <- cbind(df[, -grep("Category", colnames(df))], model.matrix(~ Category - 1, data = df))  
-  # Function for min-max scaling
-  min_max_scale <- function(x) {
-    (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
-  }
-  
-  # Apply min-max scaling to numerical columns in the encoded dataframe
-  numerical_columns <- df_encoded[, sapply(df_encoded, is.numeric)]
-  df_encoded[, names(numerical_columns)] <- as.data.frame(lapply(numerical_columns, min_max_scale))
-  reactive_df <- reactiveValues(df_encoded)
-  return (reactive_df)
+#  data <- reactiveVal({df_value})
+  return(df_value)
 }
 
 #Pour la normalisation : iris_norm <- as.data.frame(lapply(iris[1:4], min_max_norm))
 
-class_diff <- function(data,classe){
-  df <- data()
-  print(names(df))
+class_diff <- function(df,classe){
+ # df <- data()
   class_counts <- table(df$classe)
+  print(df$classe)
   class_proportions <- prop.table(class_counts)
   return (class_proportions)
 }
