@@ -116,26 +116,28 @@ afficheROC_SVM <- function(SVM,donnees_test,interet, type){
   true_labels <- donnees_test[[interet]]
   
   #Création d'un objet de performance en utilisant les probabilités prédites et les vraies étiquettes
-  perf <- prediction(pred_positive, true_labels)
+  pred <- prediction(pred_positive, true_labels)
   
   #AUC
-  auc <- performance(perf, "auc")
-  cat("AUC = ", auc@y.values[[1]])
+  perf <- performance(pred, "auc")
+  auc <- perf@y.values[[1]]
+  cat("AUC = ", auc)
   
   #TPR FPR
-  pred3 <- performance(perf, "tpr","fpr")
+  perf_tpr_fpr <- performance(pred, "tpr","fpr")
   
   if(type=="linéaire"){
     #ROC curve
-    plot(pred3,main="ROC Curve pour le SVM Linéaire",col=2,lwd=2)
+    plot(perf_tpr_fpr,main="ROC Curve pour le SVM Linéaire",col=2,lwd=2)
     abline(a=0,b=1,lwd=2,lty=2,col="gray")
   }
   
   else if(type=="radiale"){
     #ROC curve
-    plot(pred3,main="ROC Curve pour le SVM Radiale",col=2,lwd=2)
+    plot(perf_tpr_fpr,main="ROC Curve pour le SVM Radiale",col=2,lwd=2)
     abline(a=0,b=1,lwd=2,lty=2,col="gray")
   }
+  text(0.5, 0.3, paste("AUC =", round(auc, 2)), adj = c(0.5, 0.5), col = "black", cex = 1.5)
 }
 
 obtenirFeaturesImportanceSVM <- function(svmod, interet){

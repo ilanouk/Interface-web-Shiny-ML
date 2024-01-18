@@ -42,14 +42,19 @@ afficheROC <- function(rf, donnees_test, interet) {
   pred_prob <- predict(rf, newdata = donnees_test, type = "prob")
   pred_positive <- pred_prob[, 2]
   true_labels <- donnees_test[[interet]]
-  perf <- prediction(pred_positive, true_labels)
-  auc <- performance(perf, "auc")
-  cat("AUC =", auc@y.values[[1]], "\n")
+  pred <- prediction(pred_positive, true_labels)
   
-  pred3 <- performance(perf, "tpr", "fpr")
+  #AUC
+  perf <- performance(pred, "auc")
+  auc <- perf@y.values[[1]]
+  cat("AUC = ", auc)
   
-  plot(pred3, main = "ROC Curve pour le Random Forest", col = 2, lwd = 2)
+  #TPR FPR
+  perf_tpr_fpr <- performance(pred, "tpr","fpr")
+  
+  plot(perf_tpr_fpr, main = "ROC Curve pour le Random Forest", col = 2, lwd = 2)
   abline(a = 0, b = 1, lwd = 2, lty = 2, col = "gray")
+  text(0.5, 0.3, paste("AUC =", round(auc, 2)), adj = c(0.5, 0.5), col = "black", cex = 1.5)
 }
 
 obtenirFeaturesImportanceRF <- function(donnees_rf){
