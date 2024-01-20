@@ -178,7 +178,7 @@ obtenirFeaturesImportanceSVM <- function(svmod, interet){
   
   #On extrait les noms des variables (sauf la variable d'intérêt, et l'intercept (notion statistique d'equilibrage))
   coefs_svm <- coef(svmod)[-1]
-  var_names <- setdiff(names(coefs_svm), param_interet)
+  var_names <- setdiff(names(coefs_svm), interet)
   
   poids_normalises <- coefs_svm / sqrt(sum(coefs_svm^2))
   
