@@ -59,9 +59,7 @@ ui <- fluidPage(
                     selectInput("numericMethod", "Choose Method for Numeric Variables to replace NA:",
                                 choices = c("None","Mean", "Median")),
                     selectInput("categoricalMethod", "Choose Method for Categorical Variables to replace NA:",
-                                choices = c("None","Most Frequent", "Least Frequent")),
-                    checkboxInput('do_normalisation', 'Voulez vous normaliser le dataset',value=FALSE)
-                    
+                                choices = c("None","Most Frequent", "Least Frequent"))
                   )
         ),
         tabsetPanel(
@@ -142,12 +140,13 @@ server <- function(input, output, session) {
   })
   observe({
     req(input$fichier)
-    
     # Mettre à jour les choix des variables lorsque le fichier est chargé
     col_choices <- names(donnees$df)
+    print("col_binaire'=")
+    print(col_binaire)
     updateSelectInput(session, "colonne1", choices = col_choices)
     updateSelectInput(session, "colonne2", choices = col_choices)
-    updateSelectInput(session, "interet", choices = col_choices)
+    updateSelectInput(session, "interet", choices = col_binaire)
     
   })
   
