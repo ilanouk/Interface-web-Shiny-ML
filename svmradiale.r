@@ -140,6 +140,35 @@ afficheROC_SVM <- function(SVM,donnees_test,interet, type){
   text(0.5, 0.3, paste("AUC =", round(auc, 2)), adj = c(0.5, 0.5), col = "black", cex = 1.5)
 }
 
+afficheMatriceConfusionSVMR <- function(mat_conf){
+  
+  tn <- mat_conf[1, 1]  # True Negatives
+  fp <- mat_conf[1, 2]  # False Positives
+  fn <- mat_conf[2, 1]  # False Negatives
+  tp <- mat_conf[2, 2]  # True Positives
+  
+  Observed <- factor(c(0, 0, 1, 1))
+  Predicted <- factor(c(0, 1, 0, 1))
+  
+  Observed <- factor(Observed, levels = c(1, 0))
+  Predicted <- factor(Predicted, levels = c(0, 1))
+  
+  Y <- c(tn, fp, fn, tp)
+  df <- data.frame(Observed, Predicted, Y)
+  
+  ggplot(data =  df, mapping = aes(x = Predicted, y = Observed)) +
+    ggtitle("SVM Radiale") +
+    geom_tile(aes(fill = Y), colour = "white") +
+    geom_text(aes(label = sprintf("%1.0f", Y)), vjust = 1, size = 12) +
+    scale_fill_gradient(low = "#D6EAF8", high = "#2E86C1") +
+    theme_bw() + theme(legend.position = "none",
+                       axis.text.x = element_text(size = 16),
+                       axis.text.y = element_text(size = 16),
+                       axis.title.x = element_text(size = 16),
+                       axis.title.y = element_text(size = 16))
+  
+}
+
 obtenirFeaturesImportanceSVM <- function(svmod, interet){
   
   #Dans le contexte des modèles SVM , les coefficients négatifs pour certaines variables indiquent

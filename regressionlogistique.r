@@ -79,11 +79,11 @@ fonctionRegressionLogistique<- function(donnees, interet, var_independante_1, va
   seuil <- 0.5
   
   #Convertir les probabilités en classes en fonction du seuil
-  classes_predites <- ifelse(pred >= seuil, 2, 1)
+  classes_predites <- as.factor(ifelse(pred >= seuil, 2, 1))
   
   #Matrice de confusion
   mat_conf <- table(observed = data_test[[interet]], predicted = classes_predites)
-  cat("Matrice de confusion sur de nouvelles données:\n\n")
+  cat("Matrice de condusion sur de nouvelles données:\n\n")
   print(mat_conf)
   
   return(list(modele, data_train, data_test, mat_conf))
@@ -91,15 +91,13 @@ fonctionRegressionLogistique<- function(donnees, interet, var_independante_1, va
 
 
 
-getPrecision_Recall_FScore <- function(mat_conf) {
+getPrecision_Recall_FScore_rlog <- function(mat_conf) {
+  
   #On extrait les valeurs de la matrice de confusion
   tp <- mat_conf[2, 2]  # True Positives
   fp <- mat_conf[1, 2]  # False Positives
   fn <- mat_conf[2, 1]  # False Negatives
   
-  print(tp)
-  print(fp)
-  print(fn)
   
   # Calculer la précision, le rappel et le F-score
   precision <- tp / (tp + fp)
@@ -175,6 +173,37 @@ obtenirFeaturesImportanceRegL <- function(reglog){
   
   plot(i_horizontal)
 }
+
+
+afficheMatriceConfusionRLOG <- function(mat_conf){
+  
+  tn <- mat_conf[1, 1]  # True Negatives
+  fp <- mat_conf[1, 2]  # False Positives
+  fn <- mat_conf[2, 1]  # False Negatives
+  tp <- mat_conf[2, 2]  # True Positives
+  
+  
+  Observed <- factor(c(0, 0, 1, 1))
+  Predicted <- factor(c(0, 1, 0, 1))
+  
+  Observed <- factor(Observed, levels = c(1, 0))
+  Predicted <- factor(Predicted, levels = c(0, 1))
+  
+  Y <- c(tn, fp, fn, tp)
+  df <- data.frame(Observed, Predicted, Y)
+  
+  ggplot(data =  df, mapping = aes(x = Predicted, y = Observed)) +
+    geom_tile(aes(fill = Y), colour = "white") +
+    geom_text(aes(label = sprintf("%1.0f", Y)), vjust = 1, size = 12) +
+    scale_fill_gradient(low = "#D6EAF8", high = "#2E86C1") +
+    theme_bw() + theme(legend.position = "none",
+                       axis.text.x = element_text(size = 16),
+                       axis.text.y = element_text(size = 16),
+                       axis.title.x = element_text(size = 16),
+                       axis.title.y = element_text(size = 16))
+  
+}
+
 
 visualisationRegressionLogistique <- function(modele, interet, var_independante_1, var_independante_2) {
   # Utilisation des données de test du modèle

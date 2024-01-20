@@ -10,7 +10,6 @@
 # install.packages("pROC")
 # install.packages("plotly")
 
-
 source('utils.r')
 
 #Modèles
@@ -88,6 +87,7 @@ ui <- fluidPage(
                                textOutput("resultats_modele_rf"),
                                plotOutput("courbe_roc_rf")
                      ),
+                     tabPanel("Matrice de confusion", plotOutput("mat_conf_rf")),
                      tabPanel("Features importance", plotOutput("features_imp_rf"))
                    )
           ),
@@ -100,10 +100,14 @@ ui <- fluidPage(
                                textOutput("resultats_modele_svmr"),
                                plotOutput("courbe_roc_svmr")
                      ),
+                     tabPanel("Matrice de confusion",
+                              tabPanel("SVM Linéaire", plotOutput("mat_conf_svm")),
+                              tabPanel("SVM Radiale", plotOutput("mat_conf_svmr"))
+                     ),
                      tabPanel("Features importance",
                               tabPanel("SVM Linéaire",plotOutput("features_imp_svm")),
                               tabPanel("SVM Radiale",plotOutput("features_imp_svmr"))
-                     ),
+                     )
                    )
           ),
           tabPanel("Régression Logistique", 
@@ -113,6 +117,7 @@ ui <- fluidPage(
                               textOutput("resultats_modele_rlog"),
                               plotOutput("courbe_roc_rlog")
                      ),
+                     tabPanel("Matrice de confusion", plotOutput("mat_conf_rlog")),
                      tabPanel("Features importance", plotOutput("features_imp_rlog")),
                      tabPanel("Visualisation 3D", plotlyOutput("nuage_points_3d"))
                    )
@@ -273,10 +278,17 @@ server <- function(input, output, session) {
       afficheROC(model_rf[[1]], model_rf[[3]], input$interet)
     })
     
+    output$mat_conf_rf <- renderPlot({
+      afficheMatriceConfusion(model_rf[[4]])
+    })
+    
     output$features_imp_rf <- renderPlot({
       obtenirFeaturesImportanceRF(model_rf[[1]])
     })
   })
+  
+  
+  
   
   observeEvent(input$lancer_modele_svm, {
     str(donnees$df)
@@ -309,6 +321,14 @@ server <- function(input, output, session) {
       afficheROC_SVM(model_svmr[[1]], model_svmr[[3]], input$interet, "radiale")
     })
     
+    output$mat_conf_svm <- renderPlot({
+      afficheMatriceConfusionSVM(model_svm[[4]])
+    })
+    
+    output$mat_conf_svmr <- renderPlot({
+      afficheMatriceConfusionSVMR(model_svmr[[4]])
+    })
+    
     output$features_imp_svm <- renderPlot({
       obtenirFeaturesImportanceSVM(model_svm[[1]], input$interet)
     })
@@ -336,10 +356,11 @@ server <- function(input, output, session) {
     donnees_test <- model_log[[3]]
     
     #Matrice de confusion
-    mat_c <- model_log[[4]]
+    mat_c_rlog <- model_log[[4]]
+    
     
     #Precision, Recall, F1-score
-    res <- getPrecision_Recall_FScore(mat_c)
+    res <- getPrecision_Recall_FScore_rlog(mat_c_rlog)
     
     output$resultats_modele_rlog <- renderText({
       paste("Precision:", res[1], "\n",
@@ -351,12 +372,16 @@ server <- function(input, output, session) {
       afficheROCRegressionLogistique(model_log[[1]], model_log[[3]], input$interet)
     })
     
+    output$features_imp_rlog <- renderPlot({
+      obtenirFeaturesImportanceRegL(donnees_log)
+    })
+    
     output$nuage_points_3d <- renderPlotly({
       visualisationRegressionLogistique(model_log, input$interet, input$colonne1, input$colonne2)
     })
     
-    output$features_imp_rlog <- renderPlot({
-      obtenirFeaturesImportanceRegL(donnees_log)
+    output$mat_conf_rlog <- renderPlot({
+      afficheMatriceConfusionRLOG(mat_c_rlog)
     })
     
     
