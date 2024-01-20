@@ -142,11 +142,9 @@ server <- function(input, output, session) {
     req(input$fichier)
     # Mettre à jour les choix des variables lorsque le fichier est chargé
     col_choices <- names(donnees$df)
-    print("col_binaire'=")
-    print(col_binaire)
     updateSelectInput(session, "colonne1", choices = col_choices)
     updateSelectInput(session, "colonne2", choices = col_choices)
-    updateSelectInput(session, "interet", choices = col_binaire)
+    updateSelectInput(session, "interet", choices = col_choices)
     
   })
   
@@ -265,7 +263,7 @@ server <- function(input, output, session) {
     
     model_rf <- fonctionRF(donnees$df, input$interet )
     
-    res <- getPrecision_Recall_FScore(model_rf[[4]])
+    res <- getPrecision_Recall_FScore_rf(model_rf[[4]])
     
     output$resultats_modele_rf <- renderText({
       paste("Precision:", res[1], "\n",
@@ -274,11 +272,11 @@ server <- function(input, output, session) {
     })
     
     output$courbe_roc_rf <- renderPlot({
-      afficheROC(model_rf[[1]], model_rf[[3]], input$interet)
+      afficheROC_rf(model_rf[[1]], model_rf[[3]], input$interet)
     })
     
     output$mat_conf_rf <- renderPlot({
-      afficheMatriceConfusion(model_rf[[4]])
+      afficheMatriceConfusion_rf(model_rf[[4]])
     })
     
     output$features_imp_rf <- renderPlot({
@@ -297,8 +295,8 @@ server <- function(input, output, session) {
     #SMV Radial
     model_svmr <- fonctionSVM_radial(donnees$df, input$interet)
     
-    res_l <- getPrecision_Recall_FScore(model_svm[[4]])
-    res_r <- getPrecision_Recall_FScore(model_svmr[[4]])
+    res_l <- getPrecision_Recall_FScore_svm(model_svm[[4]])
+    res_r <- getPrecision_Recall_FScore_svmr(model_svmr[[4]])
     
     output$resultats_modele_svm <- renderText({
       paste("Precision:", res_l[1], "\n",
@@ -317,7 +315,7 @@ server <- function(input, output, session) {
     })
     
     output$courbe_roc_svmr <- renderPlot({
-      afficheROC_SVM(model_svmr[[1]], model_svmr[[3]], input$interet, "radiale")
+      afficheROC_SVMR(model_svmr[[1]], model_svmr[[3]], input$interet, "radiale")
     })
     
     output$mat_conf_svm <- renderPlot({

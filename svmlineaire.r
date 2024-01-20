@@ -1,4 +1,4 @@
-getPrecision_Recall_FScore <- function(mat_conf) {
+getPrecision_Recall_FScore_svm <- function(mat_conf) {
   #On extrait les valeurs de la matrice de confusion
   tp <- mat_conf[2, 2]  # True Positives
   fp <- mat_conf[1, 2]  # False Positives

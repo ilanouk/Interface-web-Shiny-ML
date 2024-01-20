@@ -1,6 +1,6 @@
 #Fonction RF
 
-getPrecision_Recall_FScore <- function(mat_conf) {
+getPrecision_Recall_FScore_rf <- function(mat_conf) {
   tp <- mat_conf[2, 2]
   fp <- mat_conf[1, 2]
   fn <- mat_conf[2, 1]
@@ -38,7 +38,7 @@ fonctionRF <- function(donnees, interet) {
 }
 
 
-afficheROC <- function(rf, donnees_test, interet) {
+afficheROC_rf <- function(rf, donnees_test, interet) {
   pred_prob <- predict(rf, newdata = donnees_test, type = "prob")
   pred_positive <- pred_prob[, 2]
   true_labels <- donnees_test[[interet]]
@@ -57,7 +57,7 @@ afficheROC <- function(rf, donnees_test, interet) {
   text(0.5, 0.3, paste("AUC =", round(auc, 2)), adj = c(0.5, 0.5), col = "black", cex = 1.5)
 }
 
-afficheMatriceConfusion <- function(mat_conf){
+afficheMatriceConfusion_rf <- function(mat_conf){
   
   tn <- mat_conf[1, 1]  # True Negatives
   fp <- mat_conf[1, 2]  # False Positives
