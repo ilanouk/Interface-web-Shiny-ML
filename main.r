@@ -47,13 +47,14 @@ ui <- fluidPage(
       selectInput("type_viz", "Choisir le type de visualisation :", c("Comparaison de Deux Variables", "Visualisation d'une Seule Variable")),
       selectInput("interet", "Variable d'intérêt :", ""),
       actionButton("analyser", "Lancer l'analyse"),
-      actionButton("button_to_NA", "Lancer le Preprocessing")
+      actionButton("button_to_NA", "Lancer le Preprocessing"),
+      checkboxInput("do_oversample","Faire un oversample des données ? ")
       
     ),
     
     mainPanel(
       tabsetPanel(
-                    tabPanel("Donnéees" ,tableOutput("myDataTable")
+        tabPanel("Donnéees" ,tableOutput("myDataTable")
         ),
         tabPanel( "Preproprecessing",
                   tabsetPanel(
@@ -83,9 +84,9 @@ ui <- fluidPage(
           tabPanel("RandomForest",
                    tabsetPanel(
                      tabPanel("Modélisation",
-                               actionButton("lancer_modele_rf", "Lancer le modèle RandomForest"),
-                               textOutput("resultats_modele_rf"),
-                               plotOutput("courbe_roc_rf")
+                              actionButton("lancer_modele_rf", "Lancer le modèle RandomForest"),
+                              textOutput("resultats_modele_rf"),
+                              plotOutput("courbe_roc_rf")
                      ),
                      tabPanel("Matrice de confusion", plotOutput("mat_conf_rf")),
                      tabPanel("Features importance", plotOutput("features_imp_rf"))
@@ -94,11 +95,11 @@ ui <- fluidPage(
           tabPanel("SVM",
                    tabsetPanel(
                      tabPanel("Modélisation",
-                               actionButton("lancer_modele_svm", "Lancer le modèle SVM"),
-                               textOutput("resultats_modele_svm"),
-                               plotOutput("courbe_roc_svm"),
-                               textOutput("resultats_modele_svmr"),
-                               plotOutput("courbe_roc_svmr")
+                              actionButton("lancer_modele_svm", "Lancer le modèle SVM"),
+                              textOutput("resultats_modele_svm"),
+                              plotOutput("courbe_roc_svm"),
+                              textOutput("resultats_modele_svmr"),
+                              plotOutput("courbe_roc_svmr")
                      ),
                      tabPanel("Matrice de confusion",
                               tabPanel("SVM Linéaire", plotOutput("mat_conf_svm")),
@@ -127,7 +128,6 @@ ui <- fluidPage(
     )
   )
 )
-
 # Serveur Shiny
 server <- function(input, output, session) {
   
@@ -144,9 +144,10 @@ server <- function(input, output, session) {
     req(input$fichier)
     # Mettre à jour les choix des variables lorsque le fichier est chargé
     col_choices <- names(donnees$df)
+    col_binaire <- obtenirVariables_dependantes_independantes(donnees$df)
     updateSelectInput(session, "colonne1", choices = col_choices)
     updateSelectInput(session, "colonne2", choices = col_choices)
-    updateSelectInput(session, "interet", choices = col_choices)
+    updateSelectInput(session, "interet", choices = col_binaire)
     
   })
   
@@ -263,7 +264,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$lancer_modele_rf, {
     
-    model_rf <- fonctionRF(donnees$df, input$interet )
+    model_rf <- fonctionRF(donnees$df, input$interet ,input$do_oversample)
     
     res <- getPrecision_Recall_FScore_rf(model_rf[[4]])
     
@@ -292,10 +293,10 @@ server <- function(input, output, session) {
   observeEvent(input$lancer_modele_svm, {
     str(donnees$df)
     #SVM Linéaire
-    model_svm <- fonctionSVM_lineaire(donnees$df, input$interet)
+    model_svm <- fonctionSVM_lineaire(donnees$df, input$interet,input$do_oversample)
     
     #SMV Radial
-    model_svmr <- fonctionSVM_radial(donnees$df, input$interet)
+    model_svmr <- fonctionSVM_radial(donnees$df, input$interet,input$do_oversample)
     
     res_l <- getPrecision_Recall_FScore_svm(model_svm[[4]])
     res_r <- getPrecision_Recall_FScore_svmr(model_svmr[[4]])
@@ -343,7 +344,7 @@ server <- function(input, output, session) {
   #REGRESSION LOGISTIQUE
   observeEvent(input$lancer_modele_rlog, {
     
-    model_log <- fonctionRegressionLogistique(donnees$df, input$interet, input$colonne1, input$colonne2)
+    model_log <- fonctionRegressionLogistique(donnees$df, input$interet, input$colonne1, input$colonne2,input$do_oversample)
     
     #Modèle
     donnees_log <- model_log[[1]]

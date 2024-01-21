@@ -30,7 +30,7 @@ fonctionRF <- function(donnees, interet, is_oversample) {
   donnees[[interet]] <- as.factor(donnees[[interet]])
   
   
-  datas <- equilibrerClasses_rf(donnees, interet, index_X, TRUE)
+  datas <- equilibrerClasses_rf(donnees, interet, index_X, is_oversample)
   data_train <- datas[[1]]
   data_test <- datas[[2]]
   

@@ -46,7 +46,7 @@ obtenirVariables_dependantes_independantes <- function(donnees){
   #On affiche les variables potentielles indépendantes
   print(variables_independantes_potentielles)
   
-  return(list(variables_dependantes_potentielles,variables_independantes_potentielles))
+  return(variables_dependantes_potentielles)
 
 }
 
