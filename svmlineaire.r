@@ -22,12 +22,10 @@ getPrecision_Recall_FScore_svm <- function(mat_conf) {
 #Fonction permettant l'application du modèle svm lineaire
 # parametres : le dataset, le paramètre d'interet
 
-fonctionSVM_lineaire <- function(donnees, interet) {
-  SVM <- NULL
-  data_test <- NULL
-  data_train <- NULL
+fonctionSVM_lineaire <- function(donnees, interet, is_oversample) {
   set.seed(123)
   
+  SVM <- NULL
   
   #on recupère l'index du parametre d'interet
   index_X = which(colnames(donnees) == interet)
@@ -37,83 +35,9 @@ fonctionSVM_lineaire <- function(donnees, interet) {
   donnees[[interet]] <- as.factor(donnees[[interet]])
   
   
-  #On calcule les proportions de classes
-  class_proportions <- prop.table(table(donnees[[interet]]))
-  
-  #On définit un seuil de différence de proportion
-  seuil_difference_proportion <-  0.50
-  
-  #On vérifie si la différence de proportion dépasse le seuil
-  #Si c'est le cas, la technique de sur-échantillonnage ROSE (Random Over-Sampling Examples) 
-  # peut régler les prbolèmes de déséquilibre de classe
-  if (max(class_proportions) - min(class_proportions) > seuil_difference_proportion) {
-    print("Déséquilibre de classe :  Stratification ")
-    
-    #Diviser le jeu de données en ensembles d'entraînement et de test de manière stratifiée
-    indices <- createDataPartition(donnees[[interet]], p = 0.7, list = FALSE)
-    p_data_train <- donnees[indices, ]
-    data_test <- donnees[-indices, ]
-    
-    
-    #Afficher les proportions de classes dans les ensembles d'entraînement et de test
-    print(prop.table(table(p_data_train[[interet]])))
-    print(prop.table(table(data_test[[interet]])))
-    
-    
-    print(p_data_train)
-    
-    cat('\n')
-    
-    print(data_test)
-    
-    #Appliquer la génération synthétique de données avec ROSE sur le jeu d'entraînement
-    classe_formula <- as.formula(paste(interet, "~ ."))
-    
-    rose_train <- ROSE(classe_formula, data = p_data_train)
-    data_train <- rose_train$data
-    
-    cat('\n')
-    print(data_train)
-    cat('\n')
-    
-    for (col in names(donnees[, -index_X])) {
-      #Vérifie si au moins une valeur dans notre data d'origine était décimale
-      has_decimal <- any(donnees[[col]] %% 1 != 0)
-      
-      if (has_decimal) {
-        #Arrondir les valeurs au décimal près dans notre data_train
-        data_train[[col]] <- round(data_train[[col]], digits = 1)
-      }
-      else{
-        #Arrondir les valeurs à des entiers dans notre data_train
-        data_train[[col]] <- round(data_train[[col]])
-      }
-    }
-    
-    #Prendre la valeur absolue de toutes les valeurs
-    data_train[, -index_X] <- abs(data_train[, -index_X])
-    
-    
-    print(data_train)
-    
-    
-    #Afficher les nouvelles proportions de classes dans le jeu d'entraînement après ROSE
-    print(prop.table(table(data_train[[interet]])))
-    
-  } else {
-    # Si la différence de proportion n'est pas significative, effectuer une division normale sans stratification
-    indices <- createDataPartition(donnees[[interet]], p = 0.7, list = FALSE)
-    data_train <- donnees[indices, ]
-    data_test <- donnees[-indices, ]
-    
-    # Afficher les proportions de classes dans les ensembles d'entraînement et de test
-    print(prop.table(table(data_train[[interet]])))
-    print(prop.table(table(data_test[[interet]])))
-    
-  }
-  
-  
-  
+  datas <- equilibrerClasses_svm(donnees, interet, index_X, TRUE)
+  data_train <- datas[[1]]
+  data_test <- datas[[2]]
   
   
   #Etape importante dans de nombreux algorithmes d'apprentissage automatique,
@@ -141,6 +65,85 @@ fonctionSVM_lineaire <- function(donnees, interet) {
   return(list(SVM, data_train, data_test, mat_conf))
 }
 
+
+equilibrerClasses_svm <- function(data_interet, interet, index_X, is_oversample){
+  data_test <- NULL
+  data_train <- NULL
+  
+  #On calcule les proportions de classes
+  class_proportions <- prop.table(table(data_interet[[interet]]))
+  
+  #On vérifie si la différence de proportion dépasse le seuil
+  #Si c'est le cas, la technique de sur-échantillonnage ROSE (Random Over-Sampling Examples) 
+  # peut régler les prbolèmes de déséquilibre de classe
+  if (is_oversample == TRUE) {
+    print("Déséquilibre de classe :")
+    
+    #Diviser le jeu de données en ensembles d'entraînement et de test de manière stratifiée
+    indices <- createDataPartition(data_interet[[interet]], p = 0.7, list = FALSE)
+    p_data_train <- data_interet[indices, ]
+    data_test <- data_interet[-indices, ]
+    
+    
+    #Afficher les proportions de classes dans les ensembles d'entraînement et de test
+    print(prop.table(table(p_data_train[[interet]])))
+    print(prop.table(table(data_test[[interet]])))
+    
+    
+    print(p_data_train)
+    
+    cat('\n')
+    
+    print(data_test)
+    
+    #Appliquer la génération synthétique de données avec ROSE sur le jeu d'entraînement
+    classe_formula <- as.formula(paste(interet, "~ ."))
+    
+    rose_train <- ROSE(classe_formula, data = p_data_train)
+    data_train <- rose_train$data
+    
+    cat('\n')
+    print(data_train)
+    cat('\n')
+    
+    for (col in names(data_interet[, -index_X])) {
+      #Vérifie si au moins une valeur dans notre data d'origine était décimale
+      has_decimal <- any(data_interet[[col]] %% 1 != 0)
+      
+      if (has_decimal) {
+        #Arrondir les valeurs au décimal près dans notre data_train
+        data_train[[col]] <- round(data_train[[col]], digits = 1)
+      }
+      else{
+        #Arrondir les valeurs à des entiers dans notre data_train
+        data_train[[col]] <- round(data_train[[col]])
+      }
+    }
+    
+    #Prendre la valeur absolue de toutes les valeurs
+    data_train[, -index_X] <- abs(data_train[, -index_X])
+    
+    
+    print(data_train)
+    
+    
+    #Afficher les nouvelles proportions de classes dans le jeu d'entraînement après ROSE
+    print(prop.table(table(data_train[[interet]])))
+    
+  } else {
+    # Si la différence de proportion n'est pas significative, effectuer une division normale sans stratification
+    indices <- createDataPartition(data_interet[[interet]], p = 0.7, list = FALSE)
+    data_train <- data_interet[indices, ]
+    data_test <- data_interet[-indices, ]
+    
+    # Afficher les proportions de classes dans les ensembles d'entraînement et de test
+    print(prop.table(table(data_train[[interet]])))
+    print(prop.table(table(data_test[[interet]])))
+    
+  }
+  
+  return(list(data_train,data_test))
+}
 
 
 afficheROC_SVM <- function(SVM,donnees_test,interet, type){

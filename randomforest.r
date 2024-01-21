@@ -17,7 +17,7 @@ getPrecision_Recall_FScore_rf <- function(mat_conf) {
 }
 
 
-fonctionRF <- function(donnees, interet) {
+fonctionRF <- function(donnees, interet, is_oversample) {
   set.seed(123)
   
   rf = NULL
@@ -29,22 +29,42 @@ fonctionRF <- function(donnees, interet) {
   
   donnees[[interet]] <- as.factor(donnees[[interet]])
   
-  #On calcule les proportions de classes
-  class_proportions <- prop.table(table(donnees[[interet]]))
   
-  #On définit un seuil de différence de proportion
-  seuil_difference_proportion <-  0.50
+  datas <- equilibrerClasses_rf(donnees, interet, index_X, TRUE)
+  data_train <- datas[[1]]
+  data_test <- datas[[2]]
+  
+  
+  rf <- randomForest(as.formula(paste(interet, "~ .")), data = data_train, ntree = 5000, mtry = 2)
+  print(rf)
+  cat("\n\n")
+  
+  pred <- predict(rf, data_test)
+  mat_conf <- table(observed = data_test[[interet]], predicted = pred)
+  cat("Matrice de confusion sur de nouvelles données:\n\n")
+  print(mat_conf)
+  
+  return(list(rf, data_train, data_test, mat_conf))
+}
+
+
+equilibrerClasses_rf <- function(data_interet, interet, index_X, is_oversample){
+  data_test <- NULL
+  data_train <- NULL
+  
+  #On calcule les proportions de classes
+  class_proportions <- prop.table(table(data_interet[[interet]]))
   
   #On vérifie si la différence de proportion dépasse le seuil
   #Si c'est le cas, la technique de sur-échantillonnage ROSE (Random Over-Sampling Examples) 
   # peut régler les prbolèmes de déséquilibre de classe
-  if (max(class_proportions) - min(class_proportions) > seuil_difference_proportion) {
-    print("Déséquilibre de classe :  Stratification ")
+  if (is_oversample == TRUE) {
+    print("Déséquilibre de classe :")
     
     #Diviser le jeu de données en ensembles d'entraînement et de test de manière stratifiée
-    indices <- createDataPartition(donnees[[interet]], p = 0.7, list = FALSE)
-    p_data_train <- donnees[indices, ]
-    data_test <- donnees[-indices, ]
+    indices <- createDataPartition(data_interet[[interet]], p = 0.7, list = FALSE)
+    p_data_train <- data_interet[indices, ]
+    data_test <- data_interet[-indices, ]
     
     
     #Afficher les proportions de classes dans les ensembles d'entraînement et de test
@@ -68,9 +88,9 @@ fonctionRF <- function(donnees, interet) {
     print(data_train)
     cat('\n')
     
-    for (col in names(donnees[, -index_X])) {
+    for (col in names(data_interet[, -index_X])) {
       #Vérifie si au moins une valeur dans notre data d'origine était décimale
-      has_decimal <- any(donnees[[col]] %% 1 != 0)
+      has_decimal <- any(data_interet[[col]] %% 1 != 0)
       
       if (has_decimal) {
         #Arrondir les valeurs au décimal près dans notre data_train
@@ -94,9 +114,9 @@ fonctionRF <- function(donnees, interet) {
     
   } else {
     # Si la différence de proportion n'est pas significative, effectuer une division normale sans stratification
-    indices <- createDataPartition(donnees[[interet]], p = 0.7, list = FALSE)
-    data_train <- donnees[indices, ]
-    data_test <- donnees[-indices, ]
+    indices <- createDataPartition(data_interet[[interet]], p = 0.7, list = FALSE)
+    data_train <- data_interet[indices, ]
+    data_test <- data_interet[-indices, ]
     
     # Afficher les proportions de classes dans les ensembles d'entraînement et de test
     print(prop.table(table(data_train[[interet]])))
@@ -104,16 +124,7 @@ fonctionRF <- function(donnees, interet) {
     
   }
   
-  rf <- randomForest(as.formula(paste(interet, "~ .")), data = data_train, ntree = 5000, mtry = 2)
-  print(rf)
-  cat("\n\n")
-  
-  pred <- predict(rf, data_test)
-  mat_conf <- table(observed = data_test[[interet]], predicted = pred)
-  cat("Matrice de confusion sur de nouvelles données:\n\n")
-  print(mat_conf)
-  
-  return(list(rf, data_train, data_test, mat_conf))
+  return(list(data_train,data_test))
 }
 
 

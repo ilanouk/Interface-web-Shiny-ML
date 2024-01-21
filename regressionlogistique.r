@@ -53,30 +53,63 @@ obtenirVariables_dependantes_independantes <- function(donnees){
 ##########################################
 
 
-fonctionRegressionLogistique<- function(donnees, interet, var_independante_1, var_independante_2) {
+fonctionRegressionLogistique<- function(donnees, interet, var_independante_1, var_independante_2, is_oversample) {
   set.seed(123)
   
   modele <- NULL
-  data_test <- NULL
-  data_train <- NULL
+  
+  #on recupère l'index du parametre d'interet
+  index_X = which(colnames(donnees) == interet)
+  
   #Faire de la variable dependante un facteur (categorique)
   #donnees[[interet]] pour donnees$interet
   donnees[[interet]] <- as.factor(donnees[[interet]])
   
   data_interet <- donnees[, c(interet, var_independante_1, var_independante_2)]
   
+  datas <- equilibrerClasses_rlog(data_interet, interet, is_oversample)
+  data_train <- datas[[1]]
+  data_test <- datas[[2]]
+  
+  
+  #construction du modele
+  my_formula <- reformulate(c(var_independante_1, var_independante_2), response = interet)
+  modele <- glm(formula = my_formula, data = data_train, family = "binomial")
+  
+  print(modele)
+  
+  cat("\n\n")
+  
+  #prediction
+  pred <- predict(modele, data_test)
+  
+  #Définir un seuil
+  seuil <- 0.5
+  
+  #Convertir les probabilités en classes en fonction du seuil
+  classes_predites <- as.factor(ifelse(pred >= seuil, 2, 1))
+  
+  #Matrice de confusion
+  mat_conf <- table(observed = data_test[[interet]], predicted = classes_predites)
+  cat("Matrice de condusion sur de nouvelles données:\n\n")
+  print(mat_conf)
+  
+  return(list(modele, data_train, data_test, mat_conf))
+}
+
+
+equilibrerClasses_rlog <- function(data_interet, interet, is_oversample){
+  data_test <- NULL
+  data_train <- NULL
   
   #On calcule les proportions de classes
   class_proportions <- prop.table(table(data_interet[[interet]]))
   
-  #On définit un seuil de différence de proportion
-  seuil_difference_proportion <- 0.50
-  
   #On vérifie si la différence de proportion dépasse le seuil
   #Si c'est le cas, la technique de sur-échantillonnage ROSE (Random Over-Sampling Examples) 
   # peut régler les prbolèmes de déséquilibre de classe
-  if (max(class_proportions) - min(class_proportions) > seuil_difference_proportion) {
-    print("Déséquilibre de classe :  Stratification ")
+  if (is_oversample == TRUE) {
+    print("Déséquilibre de classe :")
     
     #Diviser le jeu de données en ensembles d'entraînement et de test de manière stratifiée
     indices <- createDataPartition(data_interet[[interet]], p = 0.7, list = FALSE)
@@ -119,6 +152,9 @@ fonctionRegressionLogistique<- function(donnees, interet, var_independante_1, va
       }
     }
     
+    #Prendre la valeur absolue de toutes les valeurs
+    data_train[, -1] <- abs(data_train[, -1])
+    
     
     print(data_train)
     
@@ -138,31 +174,8 @@ fonctionRegressionLogistique<- function(donnees, interet, var_independante_1, va
     
   }
   
-  #construction du modele
-  my_formula <- reformulate(c(var_independante_1, var_independante_2), response = interet)
-  modele <- glm(formula = my_formula, data = data_train, family = "binomial")
-  
-  print(modele)
-  
-  cat("\n\n")
-  
-  #prediction
-  pred <- predict(modele, data_test)
-  
-  #Définir un seuil
-  seuil <- 0.5
-  
-  #Convertir les probabilités en classes en fonction du seuil
-  classes_predites <- as.factor(ifelse(pred >= seuil, 2, 1))
-  
-  #Matrice de confusion
-  mat_conf <- table(observed = data_test[[interet]], predicted = classes_predites)
-  cat("Matrice de condusion sur de nouvelles données:\n\n")
-  print(mat_conf)
-  
-  return(list(modele, data_train, data_test, mat_conf))
+  return(list(data_train,data_test))
 }
-
 
 
 getPrecision_Recall_FScore_rlog <- function(mat_conf) {
