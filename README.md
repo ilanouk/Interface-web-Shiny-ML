@@ -1,5 +1,7 @@
 # prog_web
 
+LIEN FINAL : https://mrgran1.shinyapps.io/prog_web/
+
 Votre interface doit pouvoir charger tout type de données. Il faudra réfléchir à la prise en compte :
 
 du type de chaque variable (qualitative, quantitative...)
