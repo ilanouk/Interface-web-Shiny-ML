@@ -5,12 +5,15 @@
 #install.packages("pROC")
 #install.packages("plotly")
 
+
 library(caTools)
 library(caret)
 library(e1071)
 library(ROCR)
 library(pROC)
 library(plotly)
+library(ROSE)
+
 
 
 ########################################
@@ -53,16 +56,87 @@ obtenirVariables_dependantes_independantes <- function(donnees){
 fonctionRegressionLogistique<- function(donnees, interet, var_independante_1, var_independante_2) {
   set.seed(123)
   
+  modele <- NULL
+  data_test <- NULL
+  data_train <- NULL
   #Faire de la variable dependante un facteur (categorique)
   #donnees[[interet]] pour donnees$interet
   donnees[[interet]] <- as.factor(donnees[[interet]])
   
   data_interet <- donnees[, c(interet, var_independante_1, var_independante_2)]
   
-  #echantillonnage trainset et testset
-  indices <- createDataPartition(data_interet[[interet]], p = 0.7, list = FALSE)
-  data_train <- data_interet[indices, ]
-  data_test <- data_interet[-indices, ]
+  
+  #On calcule les proportions de classes
+  class_proportions <- prop.table(table(data_interet[[interet]]))
+  
+  #On définit un seuil de différence de proportion
+  seuil_difference_proportion <- 0.50
+  
+  #On vérifie si la différence de proportion dépasse le seuil
+  #Si c'est le cas, la technique de sur-échantillonnage ROSE (Random Over-Sampling Examples) 
+  # peut régler les prbolèmes de déséquilibre de classe
+  if (max(class_proportions) - min(class_proportions) > seuil_difference_proportion) {
+    print("Déséquilibre de classe :  Stratification ")
+    
+    #Diviser le jeu de données en ensembles d'entraînement et de test de manière stratifiée
+    indices <- createDataPartition(data_interet[[interet]], p = 0.7, list = FALSE)
+    p_data_train <- data_interet[indices, ]
+    data_test <- data_interet[-indices, ]
+    
+    
+    #Afficher les proportions de classes dans les ensembles d'entraînement et de test
+    print(prop.table(table(p_data_train[[interet]])))
+    print(prop.table(table(data_test[[interet]])))
+    
+    
+    print(p_data_train)
+    
+    cat('\n')
+    
+    print(data_test)
+    
+    #Appliquer la génération synthétique de données avec ROSE sur le jeu d'entraînement
+    classe_formula <- as.formula(paste(interet, "~ ."))
+    
+    rose_train <- ROSE(classe_formula, data = p_data_train)
+    data_train <- rose_train$data
+    
+    cat('\n')
+    print(data_train)
+    cat('\n')
+    
+    for (col in names(data_interet[, -1])) {
+      #Vérifie si au moins une valeur dans notre data d'origine était décimale
+      has_decimal <- any(data_interet[[col]] %% 1 != 0)
+      
+      if (has_decimal) {
+        #Arrondir les valeurs au décimal près dans notre data_train
+        data_train[[col]] <- round(data_train[[col]], digits = 1)
+      }
+      else{
+        #Arrondir les valeurs à des entiers dans notre data_train
+        data_train[[col]] <- round(data_train[[col]])
+      }
+    }
+    
+    
+    print(data_train)
+    
+    
+    #Afficher les nouvelles proportions de classes dans le jeu d'entraînement après ROSE
+    print(prop.table(table(data_train[[interet]])))
+    
+  } else {
+    # Si la différence de proportion n'est pas significative, effectuer une division normale sans stratification
+    indices <- createDataPartition(data_interet[[interet]], p = 0.7, list = FALSE)
+    data_train <- data_interet[indices, ]
+    data_test <- data_interet[-indices, ]
+    
+    # Afficher les proportions de classes dans les ensembles d'entraînement et de test
+    print(prop.table(table(data_train[[interet]])))
+    print(prop.table(table(data_test[[interet]])))
+    
+  }
   
   #construction du modele
   my_formula <- reformulate(c(var_independante_1, var_independante_2), response = interet)

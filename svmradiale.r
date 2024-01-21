@@ -24,8 +24,11 @@ getPrecision_Recall_FScore_svmr <- function(mat_conf) {
 # parametres : le dataset, le paramètre d'interet
 
 fonctionSVM_radial <- function(donnees, interet) {
-  SVM = NULL
+  SVM <- NULL
+  data_test <- NULL
+  data_train <- NULL
   set.seed(123)
+  
   
   #on recupère l'index du parametre d'interet
   index_X = which(colnames(donnees) == interet)
@@ -34,14 +37,88 @@ fonctionSVM_radial <- function(donnees, interet) {
   #donnees[[interet]] pour donnees$interet
   donnees[[interet]] <- as.factor(donnees[[interet]])
   
-  #echantillonnage trainset et testset
-  ind <- sample(2, nrow(donnees), replace = TRUE, prob=c(0.7, 0.3))
-  data_train <- donnees[ind == 1,]
-  data_test <- donnees[ind == 2,]
+  #On calcule les proportions de classes
+  class_proportions <- prop.table(table(donnees[[interet]]))
+  
+  #On définit un seuil de différence de proportion
+  seuil_difference_proportion <-  0.50
+  
+  #On vérifie si la différence de proportion dépasse le seuil
+  #Si c'est le cas, la technique de sur-échantillonnage ROSE (Random Over-Sampling Examples) 
+  # peut régler les prbolèmes de déséquilibre de classe
+  if (max(class_proportions) - min(class_proportions) > seuil_difference_proportion) {
+    print("Déséquilibre de classe :  Stratification ")
+    
+    #Diviser le jeu de données en ensembles d'entraînement et de test de manière stratifiée
+    indices <- createDataPartition(donnees[[interet]], p = 0.7, list = FALSE)
+    p_data_train <- donnees[indices, ]
+    data_test <- donnees[-indices, ]
+    
+    
+    #Afficher les proportions de classes dans les ensembles d'entraînement et de test
+    print(prop.table(table(p_data_train[[interet]])))
+    print(prop.table(table(data_test[[interet]])))
+    
+    
+    print(p_data_train)
+    
+    cat('\n')
+    
+    print(data_test)
+    
+    #Appliquer la génération synthétique de données avec ROSE sur le jeu d'entraînement
+    classe_formula <- as.formula(paste(interet, "~ ."))
+    
+    rose_train <- ROSE(classe_formula, data = p_data_train)
+    data_train <- rose_train$data
+    
+    cat('\n')
+    print(data_train)
+    cat('\n')
+    
+    for (col in names(donnees[, -index_X])) {
+      #Vérifie si au moins une valeur dans notre data d'origine était décimale
+      has_decimal <- any(donnees[[col]] %% 1 != 0)
+      
+      if (has_decimal) {
+        #Arrondir les valeurs au décimal près dans notre data_train
+        data_train[[col]] <- round(data_train[[col]], digits = 1)
+      }
+      else{
+        #Arrondir les valeurs à des entiers dans notre data_train
+        data_train[[col]] <- round(data_train[[col]])
+      }
+    }
+    
+    #Prendre la valeur absolue de toutes les valeurs
+    data_train[, -index_X] <- abs(data_train[, -index_X])
+    
+    
+    print(data_train)
+    
+    
+    #Afficher les nouvelles proportions de classes dans le jeu d'entraînement après ROSE
+    print(prop.table(table(data_train[[interet]])))
+    
+  } else {
+    # Si la différence de proportion n'est pas significative, effectuer une division normale sans stratification
+    indices <- createDataPartition(donnees[[interet]], p = 0.7, list = FALSE)
+    data_train <- donnees[indices, ]
+    data_test <- donnees[-indices, ]
+    
+    # Afficher les proportions de classes dans les ensembles d'entraînement et de test
+    print(prop.table(table(data_train[[interet]])))
+    print(prop.table(table(data_test[[interet]])))
+    
+  }
+  
+  #Etape importante dans de nombreux algorithmes d'apprentissage automatique,
+  # y compris les machines à vecteurs de support (SVM). Cette pratique vise à normaliser
+  # les caractéristiques du jeu de données, c'est-à-dire à les ramener à une échelle commune
   
   #Feature Scaling sauf sur le parametre d'interet
-  data_train[-index_X] <- scale(data_train[-index_X])
-  data_test[-index_X] <- scale(data_test[-index_X])
+  data_train[,-index_X] <- scale(data_train[,-index_X])
+  data_test[,-index_X] <- scale(data_test[,-index_X])
   
   #construction du modele
   SVM = svm(as.formula(paste(interet, "~ .")), data = data_train, type = 'C-classification', kernel = 'radial', gamma = 0.01)
